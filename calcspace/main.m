@@ -85,7 +85,7 @@ int main (int argc, const char * argv[])
     // read target file into a buffer
     uint64_t fileSize = 0;
     fileSize = read_target(&targetBuffer, target);
-    free(target);
+    
     // verify if it's a valid mach-o target
     uint8_t isFat = 0;
     uint32_t magic = *(uint32_t*)(targetBuffer);
@@ -99,9 +99,10 @@ int main (int argc, const char * argv[])
     }
     else
     {
-		fprintf(stderr, "[ERROR] Target is not a mach-o binary!\n");
+		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
         exit(1);
     }
+    free(target);
     
     if (isFat)
     {
