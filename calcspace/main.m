@@ -19,6 +19,8 @@
 #include <mach-o/fat.h>
 #import <Foundation/Foundation.h>
 
+#define EXCEL 1
+
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
 static void process_target(uint8_t *targetBuffer);
@@ -63,7 +65,7 @@ int main (int argc, const char * argv[])
             printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
             NSString *tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
             NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
-            target = malloc([tempTarget length] * sizeof(char));
+            target = malloc([tempTarget length] * sizeof(char)+1);
             [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
         }
         else
@@ -138,6 +140,8 @@ process_target(uint8_t *targetBuffer)
     uint8_t *address = NULL;
     uint64_t lastTextSection = 0;
     uint64_t dataVMAddress = 0;
+    // 0 = 32bits, 1 = 64bits
+    uint8_t arch = 0;
     if (magic == MH_MAGIC)
     {
 #if DEBUG
@@ -204,6 +208,7 @@ process_target(uint8_t *targetBuffer)
 #if DEBUG
                 printf("[DEBUG] Last text section 0x%llx\n", lastTextSection);
 #endif
+                arch = 1;
             }
             else if (strncmp(segCmd->segname, "__DATA", 16) == 0)
             {
@@ -215,12 +220,15 @@ process_target(uint8_t *targetBuffer)
                 // no need for additional processing
                 break;
             }
-            
         }
         // move to next command
         address += loadCmd->cmdsize;
     }
-    printf("Available slack space in __TEXT is 0x%llx\n", dataVMAddress - lastTextSection);
+#if EXCEL
+    printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
+#else
+    printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
+#endif
 }
 
 /*
