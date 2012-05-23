@@ -182,11 +182,9 @@ process_target(uint8_t *targetBuffer)
                 uint32_t nsects = (segCmd->nsects >= 1) ? segCmd->nsects-1 : segCmd->nsects;
                 // read the last section
                 struct section *sectionCmd = (struct section*)(address + sizeof(struct segment_command) + nsects * sizeof(struct section));
-#if DEBUG
-                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
-#endif
                 lastTextSection = sectionCmd->addr + sectionCmd->size;
 #if DEBUG
+                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
                 printf("[DEBUG] Last text section 0x%x\n", (uint32_t)lastTextSection);
 #endif
             }
@@ -206,13 +204,13 @@ process_target(uint8_t *targetBuffer)
             struct segment_command_64 *segCmd = (struct segment_command_64*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
+                // substract one to position in the last section
+                uint32_t nsects = (segCmd->nsects >= 1) ? segCmd->nsects-1 : segCmd->nsects;
                 // read the last section
-                struct section_64 *sectionCmd = (struct section_64*)(address + sizeof(struct segment_command_64) + (segCmd->nsects-1) * sizeof(struct section_64));
-#if DEBUG
-                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
-#endif
+                struct section_64 *sectionCmd = (struct section_64*)(address + sizeof(struct segment_command_64) + nsects * sizeof(struct section_64));
                 lastTextSection = sectionCmd->addr + sectionCmd->size;
 #if DEBUG
+                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
                 printf("[DEBUG] Last text section 0x%llx\n", lastTextSection);
 #endif
                 arch = 1;
