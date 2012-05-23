@@ -85,7 +85,7 @@ int main (int argc, const char * argv[])
     // read target file into a buffer
     uint64_t fileSize = 0;
     fileSize = read_target(&targetBuffer, target);
-    
+    free(target);
     // verify if it's a valid mach-o target
     uint8_t isFat = 0;
     uint32_t magic = *(uint32_t*)(targetBuffer);
@@ -135,6 +135,7 @@ int main (int argc, const char * argv[])
     {
         process_target(targetBuffer);
     }
+    free(targetBuffer);
     return 0;
 }
 
