@@ -19,7 +19,10 @@
 #include <mach-o/fat.h>
 #import <Foundation/Foundation.h>
 
-#define EXCEL 1
+// enable comma separated output to easily import into Excel or others
+#define EXCEL 0
+// set to enable iOS support against unpacked IPA files
+#define IOS 0
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
@@ -48,7 +51,7 @@ int main (int argc, const char * argv[])
     
     if (argc < 2)
     {
-        printf("[ERROR] Invalid number of arguments!\n");
+        fprintf(stderr, "[ERROR] Invalid number of arguments!\n");
         help(argv[0]);
         exit(1);
     }
@@ -63,14 +66,18 @@ int main (int argc, const char * argv[])
         if (targetExe != nil)
         {
             printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
+#if IOS
+            NSString *tempString1 = path;
+#else
             NSString *tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
+#endif
             NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
             target = malloc([tempTarget length] * sizeof(char)+1);
             [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
         }
         else
         {
-            printf("[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
+            fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
             exit(0);
         }
     }    
@@ -92,7 +99,7 @@ int main (int argc, const char * argv[])
     }
     else
     {
-		printf("[ERROR] Target is not a mach-o binary!\n");
+		fprintf(stderr, "[ERROR] Target is not a mach-o binary!\n");
         exit(1);
     }
     
@@ -242,12 +249,12 @@ read_target(uint8_t **targetBuffer, const char *target)
     in_file = fopen(target, "r");
     if (!in_file)
     {
-		printf("[ERROR] Could not open target file %s!\n", target);
+		fprintf(stderr, "[ERROR] Could not open target file %s!\n", target);
         exit(1);
     }
     if (fseek(in_file, 0, SEEK_END))
     {
-		printf("[ERROR] Fseek failed at %s\n", target);
+		fprintf(stderr, "[ERROR] Fseek failed at %s\n", target);
         exit(1);
     }
     
@@ -255,21 +262,21 @@ read_target(uint8_t **targetBuffer, const char *target)
     
     if (fseek(in_file, 0, SEEK_SET))
     {
-		printf("[ERROR] Fseek failed at %s\n", target);
+		fprintf(stderr, "[ERROR] Fseek failed at %s\n", target);
         exit(1);
     }
     
     *targetBuffer = malloc(fileSize * sizeof(uint8_t));
     if (*targetBuffer == NULL)
     {
-        printf("[ERROR] Malloc failed!\n");
+        fprintf(stderr, "[ERROR] Malloc failed!\n");
         exit(1);
     }
     
     fread(*targetBuffer, fileSize, 1, in_file);
 	if (ferror(in_file))
 	{
-		printf("[ERROR] fread failed at %s\n", target);
+		fprintf(stderr, "[ERROR] fread failed at %s\n", target);
         free(*targetBuffer);
 		exit(1);
 	}
