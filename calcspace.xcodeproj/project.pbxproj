@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		DEA784E1156B28EA0052657D /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = DEA784E0156B28EA0052657D /* main.c */; };
+		DEA784E1156B28EA0052657D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DEA784E0156B28EA0052657D /* main.m */; };
 		DEA784E3156B28EA0052657D /* calcspace.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DEA784E2156B28EA0052657D /* calcspace.1 */; };
+		DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEA78506156BEDAC0052657D /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,8 +27,9 @@
 
 /* Begin PBXFileReference section */
 		DEA784DC156B28EA0052657D /* calcspace */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = calcspace; sourceTree = BUILT_PRODUCTS_DIR; };
-		DEA784E0156B28EA0052657D /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		DEA784E0156B28EA0052657D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		DEA784E2156B28EA0052657D /* calcspace.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = calcspace.1; sourceTree = "<group>"; };
+		DEA78506156BEDAC0052657D /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,6 +47,7 @@
 		DEA784D1156B28EA0052657D = {
 			isa = PBXGroup;
 			children = (
+				DEA78506156BEDAC0052657D /* Foundation.framework */,
 				DEA784DF156B28EA0052657D /* calcspace */,
 				DEA784DD156B28EA0052657D /* Products */,
 			);
@@ -60,7 +64,7 @@
 		DEA784DF156B28EA0052657D /* calcspace */ = {
 			isa = PBXGroup;
 			children = (
-				DEA784E0156B28EA0052657D /* main.c */,
+				DEA784E0156B28EA0052657D /* main.m */,
 				DEA784E2156B28EA0052657D /* calcspace.1 */,
 			);
 			path = calcspace;
@@ -116,7 +120,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DEA784E1156B28EA0052657D /* main.c in Sources */,
+				DEA784E1156B28EA0052657D /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,6 +176,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				GCC_INPUT_FILETYPE = automatic;
 				GCC_PREPROCESSOR_DEFINITIONS = "DEBUG=0";
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -182,6 +187,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				GCC_INPUT_FILETYPE = automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

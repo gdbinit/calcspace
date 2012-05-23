@@ -1,68 +1,93 @@
-//
-//  main.c
-//  calcspace
-//
-//  
-//  (c) fG!, 2012 - reverser@put.as
-//
+/*
+ *   _____     _     _____                 
+ *  |     |___| |___|   __|___ ___ ___ ___ 
+ *  |   --| .'| |  _|__   | . | .'|  _| -_|
+ *  |_____|__,|_|___|_____|  _|__,|___|___|
+ *                        |_|              
+ *  (c) fG!, 2012 - reverser@put.as
+ *
+ *  Small util to calculate the free space between the __TEXT and __DATA segments
+ *
+ *  The objective is to verify if there's enough space for code injection.
+ */
 
-#include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <strings.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
-#include <strings.h>
-#include <libgen.h>
-
-#define MALLOC_CHECK(variable) \
-if (variable == NULL) { printf("[ERROR] Malloc failed! Exiting...\n"); exit(1); }
-
-#define MALLOC(variable, size) \
-variable = malloc(size); MALLOC_CHECK(variable);
+#import <Foundation/Foundation.h>
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
-static void help(void);
-void process_target(uint8_t *targetBuffer);
+static void help(const char *exe);
+static void process_target(uint8_t *targetBuffer);
 
-static void help(void)
+static void 
+help(const char *exe)
 {
+    printf(" _____     _     _____ \n");                
+    printf("|     |___| |___|   __|___ ___ ___ ___ \n");
+    printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
+    printf("|_____|__,|_|___|_____|  _|__,|___|___|\n");
+    printf("                      |_|              \n");
+    printf("Calculate free space between __TEXT and __DATA\n");
+    printf("(c) fG!, 2012 - reverser@put.as\n");
+
     printf("\n");
     printf("Usage Syntax:\n");
-    printf("macgyver target\n\n");
+    printf("%s path\n", exe);
     printf("where:\n");
-    printf("target - binary to work on\n");
+    printf("path - path to the .app folder\n");
 }
 
 int main (int argc, const char * argv[])
 {
-//    printf(" _____         _____ \n");
-//    printf("|     |___ ___|   __|_ _ _ _ ___ ___ \n");
-//    printf("| | | | .'|  _|  |  | | | | | -_|  _|\n");
-//    printf("|_|_|_|__,|___|_____|_  |\\_/|___|_|  \n");
-//    printf("                    |___|            \n");
-//    printf("The Mach-O swiss army knife utility\n");
-//    printf("(c) fG!, 2012 - reverser@put.as\n\n");
     
     if (argc < 2)
     {
         printf("[ERROR] Invalid number of arguments!\n");
-        help();
+        help(argv[0]);
         exit(1);
     }
+    char *target;
+    @autoreleasepool {
+
+        NSString *path = [NSString stringWithCString:argv[1] encoding:NSUTF8StringEncoding];
+        NSBundle *bundle = [NSBundle bundleWithPath:path];
+        NSDictionary *plistData = [bundle infoDictionary];
+
+        NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
+        if (targetExe != nil)
+        {
+            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
+            NSString *tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
+            NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
+            target = malloc([tempTarget length] * sizeof(char));
+            [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
+        }
+        else
+        {
+            printf("[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
+            exit(0);
+        }
+    }    
     uint8_t *targetBuffer;
     // read target file into a buffer
     uint64_t fileSize = 0;
-    fileSize = read_target(&targetBuffer, argv[1]);
-    
+    fileSize = read_target(&targetBuffer, target);
     
     // verify if it's a valid mach-o target
     uint8_t isFat = 0;
     uint32_t magic = *(uint32_t*)(targetBuffer);
     if (magic == FAT_CIGAM)
+    {
         isFat = 1;
+    }
     else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
+    {
         isFat = 0;
+    }
     else
     {
 		printf("[ERROR] Target is not a mach-o binary!\n");
@@ -72,7 +97,7 @@ int main (int argc, const char * argv[])
     if (isFat)
     {
 #if DEBUG
-        printf("Target is fat binary!\n");
+        printf("[DEBUG] Target is fat binary!\n");
 #endif
         struct fat_header *fatheader_ptr = (struct fat_header *)targetBuffer;
         uint32_t nrFatArch = ntohl(fatheader_ptr->nfat_arch);
@@ -82,12 +107,13 @@ int main (int argc, const char * argv[])
         for (uint32_t i = 0; i < nrFatArch ; i++)
         {
 #if DEBUG
-            printf("Processing fat binary nr %d of %d (cpu 0x%x)\n", i, nrFatArch, ntohl(fatArch->cputype));
+            printf("[DEBUG] Processing fat binary nr %d of %d (cpu 0x%x)\n", i, nrFatArch, ntohl(fatArch->cputype));
 #endif
             // position the buffer into the address and call the function
             address = targetBuffer + ntohl(fatArch->offset);
             if (ntohl(fatArch->cputype) == CPU_TYPE_POWERPC || ntohl(fatArch->cputype) == CPU_TYPE_POWERPC64)
             {
+                // not supported for now or never
             }
             else
             {
@@ -103,7 +129,8 @@ int main (int argc, const char * argv[])
     return 0;
 }
 
-void process_target(uint8_t *targetBuffer)
+static void 
+process_target(uint8_t *targetBuffer)
 {
     uint32_t magic = *(uint32_t*)(targetBuffer);
     struct mach_header_64 header;
@@ -114,7 +141,7 @@ void process_target(uint8_t *targetBuffer)
     if (magic == MH_MAGIC)
     {
 #if DEBUG
-        printf("Processing 32bits target...\n");
+        printf("[DEBUG] Processing 32bits target...\n");
 #endif
         memcpy(&header, targetBuffer, sizeof(struct mach_header));
         headerSize = sizeof(struct mach_header);
@@ -122,7 +149,7 @@ void process_target(uint8_t *targetBuffer)
     else if (magic == MH_MAGIC_64)
     {
 #if DEBUG
-        printf("Processing 64bits target...\n");
+        printf("[DEBUG] Processing 64bits target...\n");
 #endif
         memcpy(&header, targetBuffer, sizeof(struct mach_header_64));
         headerSize = sizeof(struct mach_header_64);
@@ -133,28 +160,30 @@ void process_target(uint8_t *targetBuffer)
     {
         loadCmd = (struct load_command*)address;
 #if DEBUG
-        printf("Current load cmd %x\n", loadCmd->cmd);
+        printf("[DEBUG] Current load cmd %x\n", loadCmd->cmd);
 #endif
         if (loadCmd->cmd == LC_SEGMENT)
         {
             struct segment_command *segCmd = (struct segment_command*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
+                // substract one to position in the last section
+                uint32_t nsects = (segCmd->nsects >= 1) ? segCmd->nsects-1 : segCmd->nsects;
                 // read the last section
-                struct section *sectionCmd = (struct section*)(address + sizeof(struct segment_command) + (segCmd->nsects-1) * sizeof(struct section));
+                struct section *sectionCmd = (struct section*)(address + sizeof(struct segment_command) + nsects * sizeof(struct section));
 #if DEBUG
-                printf("Section name %s\n", sectionCmd->sectname);
+                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
 #endif
                 lastTextSection = sectionCmd->addr + sectionCmd->size;
 #if DEBUG
-                printf("Last text section 0x%x\n", (uint32_t)lastTextSection);
+                printf("[DEBUG] Last text section 0x%x\n", (uint32_t)lastTextSection);
 #endif
             }
             else if (strncmp(segCmd->segname, "__DATA", 16) == 0)
             {
                 // read the DATA segment vmaddr
 #if DEBUG
-                printf("Data VMAddr is %x\n", segCmd->vmaddr);
+                printf("[DEBUG] Data VMAddr is %x\n", segCmd->vmaddr);
 #endif
                 dataVMAddress = segCmd->vmaddr;
                 // no need for additional processing
@@ -169,18 +198,18 @@ void process_target(uint8_t *targetBuffer)
                 // read the last section
                 struct section_64 *sectionCmd = (struct section_64*)(address + sizeof(struct segment_command_64) + (segCmd->nsects-1) * sizeof(struct section_64));
 #if DEBUG
-                printf("Section name %s\n", sectionCmd->sectname);
+                printf("[DEBUG] Section name %s\n", sectionCmd->sectname);
 #endif
                 lastTextSection = sectionCmd->addr + sectionCmd->size;
 #if DEBUG
-                printf("Last text section 0x%llx\n", lastTextSection);
+                printf("[DEBUG] Last text section 0x%llx\n", lastTextSection);
 #endif
             }
             else if (strncmp(segCmd->segname, "__DATA", 16) == 0)
             {
                 // read the DATA segment vmaddr
 #if DEBUG
-                printf("Data VMAddr is %llx\n", segCmd->vmaddr);
+                printf("[DEBUG] Data VMAddr is %llx\n", segCmd->vmaddr);
 #endif
                 dataVMAddress = segCmd->vmaddr;
                 // no need for additional processing
@@ -197,7 +226,8 @@ void process_target(uint8_t *targetBuffer)
 /*
  * read the target file into a buffer
  */
-static uint64_t read_target(uint8_t **targetBuffer, const char *target)
+static uint64_t 
+read_target(uint8_t **targetBuffer, const char *target)
 {
     FILE *in_file;
 	
@@ -213,7 +243,7 @@ static uint64_t read_target(uint8_t **targetBuffer, const char *target)
         exit(1);
     }
     
-    uint64_t fileSize = ftell(in_file);
+    long fileSize = ftell(in_file);
     
     if (fseek(in_file, 0, SEEK_SET))
     {
