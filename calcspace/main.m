@@ -21,10 +21,8 @@
 
 #import <Foundation/Foundation.h>
 
-// enable comma separated output to easily import into Excel or others
-#define EXCEL 0
-// set to enable iOS support against unpacked IPA files
-#define IOS 0
+uint8_t iosActive   = 0;
+uint8_t excelActive = 0;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
@@ -43,10 +41,12 @@ help(const char *exe)
 
     printf("\n");
     printf("Usage Syntax:\n");
-    printf("%s <path> [-a]\n", exe);
+    printf("%s <path> [-a] [-i] [-e]\n", exe);
     printf("where:\n");
     printf("<path>: path to the .app folder\n");
     printf("-a    : calculate free space between all __TEXT sections\n");
+    printf("-i    : target is an iOS application\n");
+    printf("-e    : format output to be imported into Excel\n");
 }
 
 int main (int argc, char * argv[])
@@ -54,6 +54,8 @@ int main (int argc, char * argv[])
     // required structure for long options
 	static struct option long_options[]={
         { "all", no_argument, NULL, 'a' },
+        { "ios", no_argument, NULL, 'i' },
+        { "excel", no_argument, NULL, 'e' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
@@ -62,7 +64,7 @@ int main (int argc, char * argv[])
     char *myProgramName = argv[0];
     
     // process command line options
-	while ((c = getopt_long(argc, argv, "a", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "aie", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -76,6 +78,12 @@ int main (int argc, char * argv[])
 				break;
             case 'a':
                 allsections = 1;
+                break;
+            case 'i':
+                iosActive = 1;
+                break;
+            case 'e':
+                excelActive = 1;
                 break;
 			default:
 				help(myProgramName);
@@ -100,11 +108,12 @@ int main (int argc, char * argv[])
         if (targetExe != nil)
         {
             printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
-#if IOS
-            NSString *tempString1 = path;
-#else
-            NSString *tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
-#endif
+            NSString *tempString1;
+            if (iosActive)
+                tempString1 = path;
+            else
+                tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
+
             NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
             target = malloc([tempTarget length] * sizeof(char)+1);
             [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
@@ -227,7 +236,14 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
                         printf("Current section address: %x\n", currentSectionCmd->addr);
                         printf("Next section address: %x\n", nextSectionCmd->addr);
 #endif
-                        printf("Free space between %.16s and %.16s: %x\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        if (excelActive)
+                        {
+                            printf("%d,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        }
+                        else
+                        {
+                            printf("Free space between %.16s and %.16s: %x\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        }
                     }
                 }
                 // but also compute between last section and the first in __DATA
@@ -269,7 +285,14 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
                         printf("Current section address: %x\n", currentSectionCmd->addr);
                         printf("Next section address: %x\n", nextSectionCmd->addr);
 #endif
-                        printf("Free space between %.16s and %.16s: %llx\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        if (excelActive)
+                        {
+                            printf("%lld,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        }
+                        else
+                        {
+                            printf("Free space between %.16s and %.16s: %llx\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                        }
                     }
                 }
                 // substract one to position in the last section
@@ -297,11 +320,12 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
         // move to next command
         address += loadCmd->cmdsize;
     }
-#if EXCEL
-    printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
-#else
-    printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
-#endif
+    
+    if (excelActive)
+        printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
+//        printf("%lld\n", (dataVMAddress - lastTextSection));
+    else
+        printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
 }
 
 /*
