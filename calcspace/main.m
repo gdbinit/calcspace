@@ -28,7 +28,7 @@ uint8_t newCmdsActive = 0;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
-static void process_target(uint8_t *targetBuffer, uint8_t allsections);
+static void process_target(uint8_t *targetBuffer, uint8_t allSections);
 static uint32_t get_header(uint8_t *targetBuffer, struct mach_header_64 *header);
 static void process_injectionspace(uint8_t *targetBuffer);
 
@@ -40,18 +40,20 @@ help(const char *exe)
     printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
     printf("|_____|__,|_|___|_____|  _|__,|___|___|\n");
     printf("                      |_|              \n");
-    printf("Calculate free space between __TEXT and __DATA\n");
+    printf("Calculate free space in mach-o headers\n");
     printf("(c) fG!, 2012 - reverser@put.as\n");
 
     printf("\n");
     printf("Usage Syntax:\n");
-    printf("%s <path> [-a] [-i] [-e]\n", exe);
+    printf("%s <path> <commands>\n", exe);
     printf("where:\n");
     printf("<path>: path to the .app folder\n");
-    printf("-a    : calculate free space between all __TEXT sections\n");
-    printf("-i    : target is an iOS application\n");
-    printf("-e    : format output to be imported into Excel\n");
-    printf("-n    : calculate free space to inject new commands\n");
+    printf("and commands:\n");
+    printf("-f : calculate free space between last __TEXT section and __DATA\n");
+    printf("-a : calculate free space between all __TEXT sections (requires -f)\n");
+    printf("-i : target is an iOS application\n");
+    printf("-e : format output to be imported into Excel\n");
+    printf("-n : calculate free space to inject new commands\n");
 }
 
 int main (int argc, char * argv[])
@@ -62,15 +64,17 @@ int main (int argc, char * argv[])
         { "ios", no_argument, NULL, 'i' },
         { "excel", no_argument, NULL, 'e' },
         { "newcmds", no_argument, NULL, 'n' },
+        { "free", no_argument, NULL, 'f' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
     int c = 0;
-    uint8_t allsections = 0;
+    uint8_t allSections = 0;
+    uint8_t freeDataSpace = 0;
     char *myProgramName = argv[0];
     
     // process command line options
-	while ((c = getopt_long(argc, argv, "aien", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "aienf", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -83,7 +87,7 @@ int main (int argc, char * argv[])
 				exit(1);
 				break;
             case 'a':
-                allsections = 1;
+                allSections = 1;
                 break;
             case 'i':
                 iosActive = 1;
@@ -94,18 +98,28 @@ int main (int argc, char * argv[])
             case 'n':
                 newCmdsActive = 1;
                 break;
+            case 'f':
+                freeDataSpace = 1;
+                break;
 			default:
 				help(myProgramName);
 				exit(1);
 		}
 	}
 
-    if (argc-optind < 1)
+    if (optind <= 1 || argc-optind < 1 )
     {
         fprintf(stderr, "[ERROR] Invalid number of arguments!\n");
         help(myProgramName);
         exit(1);
     }
+    
+    if (!freeDataSpace && allSections)
+    {
+        fprintf(stderr, "[ERROR] -a option requires -f\n");
+        exit(1);
+    }
+    
     char *target;
     @autoreleasepool {
 
@@ -181,8 +195,8 @@ int main (int argc, char * argv[])
             {
                 if (newCmdsActive)
                     process_injectionspace(address);
-                else
-                    process_target(address, allsections);
+                if (freeDataSpace)
+                    process_target(address, allSections);
             }
             fatArch++;
         }
@@ -192,8 +206,8 @@ int main (int argc, char * argv[])
     {
         if (newCmdsActive)
             process_injectionspace(targetBuffer);
-        else
-            process_target(targetBuffer, allsections);
+        if (freeDataSpace)
+            process_target(targetBuffer, allSections);
     }
     free(targetBuffer);
     return 0;
@@ -227,7 +241,7 @@ get_header(uint8_t *targetBuffer, struct mach_header_64 *header)
 }
 
 static void 
-process_target(uint8_t *targetBuffer, uint8_t allsections)
+process_target(uint8_t *targetBuffer, uint8_t allSections)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -253,7 +267,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
             struct segment_command *segCmd = (struct segment_command*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
-                if (allsections && segCmd->nsects > 1)
+                if (allSections && segCmd->nsects > 1)
                 {
                     for (uint32_t x = 0; x < segCmd->nsects-1; x++)
                     {
@@ -270,7 +284,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
                         }
                         else
                         {
-                            printf("Free space between %.16s and %.16s: %x\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                            printf("Free space between %.16s and %.16s: %d bytes\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
                     }
                 }
@@ -302,7 +316,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
                 // compute the difference between all __TEXT sections
-                if (allsections && segCmd->nsects > 1)
+                if (allSections && segCmd->nsects > 1)
                 {
                     for (uint32_t x = 0; x < segCmd->nsects-1; x++)
                     {
@@ -319,7 +333,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
                         }
                         else
                         {
-                            printf("Free sspace between %.16s and %.16s: %llx\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                            printf("Free space between %.16s and %.16s: %lld bytes\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
                     }
                 }
@@ -353,9 +367,12 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
         printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
     //        printf("%lld\n", (dataVMAddress - lastTextSection));
     else
-        printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
+        printf("Available slack space at the end of __TEXT is %lld bytes (%s)\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
 }
 
+/*
+ * calculate the free mach-o header space to inject new commands
+ */
 static void 
 process_injectionspace(uint8_t *targetBuffer)
 {
@@ -384,23 +401,19 @@ process_injectionspace(uint8_t *targetBuffer)
             struct segment_command *segCmd = (struct segment_command*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
-                // compute the difference between all __TEXT sections
-                if (newCmdsActive)
+                uint8_t *sectionAddress = address + sizeof(struct segment_command);
+                for (uint32_t x = 0; x < segCmd->nsects; x++)
                 {
-                    uint8_t *sectionAddress = address + sizeof(struct segment_command);
-                    for (uint32_t x = 0; x < segCmd->nsects; x++)
+                    struct section *currentSectionCmd = (struct section*)sectionAddress;
+                    if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
                     {
-                        struct section *currentSectionCmd = (struct section*)sectionAddress;
-                        if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
-                        {
-                            textFirstSectionAddress = currentSectionCmd->offset;
+                        textFirstSectionAddress = currentSectionCmd->offset;
 #if DEBUG
-                            printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
 #endif
-                            break;
-                        }
-                        sectionAddress += sizeof(struct section);
+                        break;
                     }
+                    sectionAddress += sizeof(struct section);
                 }
             }
         }
@@ -409,6 +422,20 @@ process_injectionspace(uint8_t *targetBuffer)
             struct segment_command_64 *segCmd = (struct segment_command_64*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
+                uint8_t *sectionAddress = address + sizeof(struct segment_command_64);
+                for (uint32_t x = 0; x < segCmd->nsects; x++)
+                {
+                    struct section_64 *currentSectionCmd = (struct section_64*)sectionAddress;
+                    if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
+                    {
+                        textFirstSectionAddress = currentSectionCmd->offset;
+#if DEBUG
+                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+#endif
+                        break;
+                    }
+                    sectionAddress += sizeof(struct section_64);
+                }
                 arch = 1;
             }
         }
@@ -421,21 +448,18 @@ process_injectionspace(uint8_t *targetBuffer)
         address += loadCmd->cmdsize;
     }
     
-    // use the lowest one
+    // use the lowest one - for signed binaries crypt usually comes first!
     if (cryptFirstSectionAddress == 0 || cryptFirstSectionAddress > textFirstSectionAddress)
-        firstSectionAddress = textFirstSectionAddress;
+        firstSectionAddress = (uint32_t)targetBuffer + textFirstSectionAddress;
     else
-        firstSectionAddress = cryptFirstSectionAddress;
+        firstSectionAddress = (uint32_t)targetBuffer + cryptFirstSectionAddress;
     
-    // calculate offset to start injection
-    uint8_t *injectionStartOffset = 0;
     // address is positioned after all load commands
-    injectionStartOffset = address;
-    
-    // verify is there is enough space available
-    // this is the position in our buffer of the __text code!
-    uint8_t *injectionSectionOffset = targetBuffer + firstSectionAddress;
-    fprintf(stdout, "Free injection space: %x\n", (injectionSectionOffset-injectionStartOffset));
+    uint32_t headerEndAddress = (uint32_t)address;
+    if (excelActive)
+        printf("%d,%s\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
+    else
+        printf("Free injection space: %d bytes (%s)\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
 }
 
 /*
