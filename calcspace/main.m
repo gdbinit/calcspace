@@ -7,6 +7,7 @@
  *  (c) fG!, 2012 - reverser@put.as
  *
  *  Small util to calculate the free space between the __TEXT and __DATA segments
+ *  and between all sections inside __TEXT segment
  *
  *  The objective is to verify if there's enough space for code injection.
  */
@@ -23,10 +24,12 @@
 
 uint8_t iosActive   = 0;
 uint8_t excelActive = 0;
+uint8_t newCmdsActive = 0;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
 static void process_target(uint8_t *targetBuffer, uint8_t allsections);
+static uint32_t get_header(uint8_t *targetBuffer, struct mach_header_64 *header);
 
 static void 
 help(const char *exe)
@@ -47,6 +50,7 @@ help(const char *exe)
     printf("-a    : calculate free space between all __TEXT sections\n");
     printf("-i    : target is an iOS application\n");
     printf("-e    : format output to be imported into Excel\n");
+    printf("-n    : calculate free space to inject new commands\n");
 }
 
 int main (int argc, char * argv[])
@@ -56,6 +60,7 @@ int main (int argc, char * argv[])
         { "all", no_argument, NULL, 'a' },
         { "ios", no_argument, NULL, 'i' },
         { "excel", no_argument, NULL, 'e' },
+        { "newcmds", no_argument, NULL, 'n' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
@@ -64,7 +69,7 @@ int main (int argc, char * argv[])
     char *myProgramName = argv[0];
     
     // process command line options
-	while ((c = getopt_long(argc, argv, "aie", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "aien", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -84,6 +89,9 @@ int main (int argc, char * argv[])
                 break;
             case 'e':
                 excelActive = 1;
+                break;
+            case 'n':
+                newCmdsActive = 1;
                 break;
 			default:
 				help(myProgramName);
@@ -184,6 +192,30 @@ int main (int argc, char * argv[])
     return 0;
 }
 
+static uint32_t
+get_header(uint8_t *targetBuffer, struct mach_header_64 *header)
+{
+    uint32_t magic = *(uint32_t*)(targetBuffer);    
+    uint32_t headerSize = 0;
+    if (magic == MH_MAGIC)
+    {
+#if DEBUG
+        printf("[DEBUG] Processing 32bits target...\n");
+#endif
+        memcpy(header, targetBuffer, sizeof(struct mach_header));
+        headerSize = sizeof(struct mach_header);
+    }
+    else if (magic == MH_MAGIC_64)
+    {
+#if DEBUG
+        printf("[DEBUG] Processing 64bits target...\n");
+#endif
+        memcpy(header, targetBuffer, sizeof(struct mach_header_64));
+        headerSize = sizeof(struct mach_header_64);
+    }
+    return headerSize;
+}
+
 static void 
 process_target(uint8_t *targetBuffer, uint8_t allsections)
 {
@@ -195,24 +227,29 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
     uint64_t dataVMAddress = 0;
     // 0 = 32bits, 1 = 64bits
     uint8_t arch = 0;
-    if (magic == MH_MAGIC)
-    {
-#if DEBUG
-        printf("[DEBUG] Processing 32bits target...\n");
-#endif
-        memcpy(&header, targetBuffer, sizeof(struct mach_header));
-        headerSize = sizeof(struct mach_header);
-    }
-    else if (magic == MH_MAGIC_64)
-    {
-#if DEBUG
-        printf("[DEBUG] Processing 64bits target...\n");
-#endif
-        memcpy(&header, targetBuffer, sizeof(struct mach_header_64));
-        headerSize = sizeof(struct mach_header_64);
-    }
+//    if (magic == MH_MAGIC)
+//    {
+//#if DEBUG
+//        printf("[DEBUG] Processing 32bits target...\n");
+//#endif
+//        memcpy(&header, targetBuffer, sizeof(struct mach_header));
+//        headerSize = sizeof(struct mach_header);
+//    }
+//    else if (magic == MH_MAGIC_64)
+//    {
+//#if DEBUG
+//        printf("[DEBUG] Processing 64bits target...\n");
+//#endif
+//        memcpy(&header, targetBuffer, sizeof(struct mach_header_64));
+//        headerSize = sizeof(struct mach_header_64);
+//    }
+    headerSize = get_header(targetBuffer, &header);
     address = targetBuffer + headerSize;
     struct load_command *loadCmd;
+    uint32_t firstSectionAddress = 0;
+    uint32_t textFirstSectionAddress = 0;
+    uint32_t cryptFirstSectionAddress = 0;
+
     for (uint32_t i = 0; i < header.ncmds ; i++)
     {
         loadCmd = (struct load_command*)address;
@@ -225,37 +262,56 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
                 // compute the difference between all __TEXT sections
-                if (allsections && segCmd->nsects > 1)
+                if (newCmdsActive)
                 {
-                    for (uint32_t x = 0; x < segCmd->nsects-1; x++)
+                    uint8_t *sectionAddress = address + sizeof(struct segment_command);
+                    for (uint32_t x = 0; x < segCmd->nsects; x++)
                     {
-                        // current section
-                        struct section *currentSectionCmd = (struct section*)(address + sizeof(struct segment_command) + x * sizeof(struct section));
-                        struct section *nextSectionCmd = (struct section*)((uint8_t*)currentSectionCmd+sizeof(struct section));
+                        struct section *currentSectionCmd = (struct section*)sectionAddress;
+                        if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
+                        {
+                            textFirstSectionAddress = currentSectionCmd->offset;
 #if DEBUG
-                        printf("Current section address: %x\n", currentSectionCmd->addr);
-                        printf("Next section address: %x\n", nextSectionCmd->addr);
+                            printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
 #endif
-                        if (excelActive)
-                        {
-                            printf("%d,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
-                        else
-                        {
-                            printf("Free space between %.16s and %.16s: %x\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
-                        }
+                        sectionAddress += sizeof(struct section);
                     }
                 }
-                // but also compute between last section and the first in __DATA
-                // substract one to position in the last section
-                uint32_t nsects = (segCmd->nsects >= 1) ? segCmd->nsects-1 : segCmd->nsects;
-                // read the last section
-                struct section *sectionCmd = (struct section*)(address + sizeof(struct segment_command) + nsects * sizeof(struct section));
-                lastTextSection = sectionCmd->addr + sectionCmd->size;
+                else
+                {
+                    if (allsections && segCmd->nsects > 1)
+                    {
+                        for (uint32_t x = 0; x < segCmd->nsects-1; x++)
+                        {
+                            // current section
+                            struct section *currentSectionCmd = (struct section*)(address + sizeof(struct segment_command) + x * sizeof(struct section));
+                            struct section *nextSectionCmd = (struct section*)((uint8_t*)currentSectionCmd+sizeof(struct section));
 #if DEBUG
-                printf("[DEBUG] Section name %.16s\n", sectionCmd->sectname);
-                printf("[DEBUG] Last text section 0x%x\n", (uint32_t)lastTextSection);
+                            printf("Current section address: %x\n", currentSectionCmd->addr);
+                            printf("Next section address: %x\n", nextSectionCmd->addr);
 #endif
+                            if (excelActive)
+                            {
+                                printf("%d,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                            }
+                            else
+                            {
+                                printf("Free space between %.16s and %.16s: %x\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                            }
+                        }
+                    }
+                    // but also compute between last section and the first in __DATA
+                    // substract one to position in the last section
+                    uint32_t nsects = (segCmd->nsects >= 1) ? segCmd->nsects-1 : segCmd->nsects;
+                    // read the last section
+                    struct section *sectionCmd = (struct section*)(address + sizeof(struct segment_command) + nsects * sizeof(struct section));
+                    lastTextSection = sectionCmd->addr + sectionCmd->size;
+#if DEBUG
+                    printf("[DEBUG] Section name %.16s\n", sectionCmd->sectname);
+                    printf("[DEBUG] Last text section 0x%x\n", (uint32_t)lastTextSection);
+#endif
+                }
             }
             else if (strncmp(segCmd->segname, "__DATA", 16) == 0)
             {
@@ -265,7 +321,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
 #endif
                 dataVMAddress = segCmd->vmaddr;
                 // no need for additional processing
-                break;
+//                break;
             }
         }
         else if (loadCmd->cmd == LC_SEGMENT_64)
@@ -291,7 +347,7 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
                         }
                         else
                         {
-                            printf("Free space between %.16s and %.16s: %llx\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
+                            printf("Free sspace between %.16s and %.16s: %llx\n", currentSectionCmd->sectname, nextSectionCmd->sectname, nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
                     }
                 }
@@ -314,18 +370,44 @@ process_target(uint8_t *targetBuffer, uint8_t allsections)
 #endif
                 dataVMAddress = segCmd->vmaddr;
                 // no need for additional processing
-                break;
+//                break;
             }
+        }
+        else if (loadCmd->cmd == LC_ENCRYPTION_INFO)
+        {
+            struct encryption_info_command *segCmd = (struct encryption_info_command*)address;
+            cryptFirstSectionAddress = segCmd->cryptoff;
         }
         // move to next command
         address += loadCmd->cmdsize;
     }
-    
-    if (excelActive)
-        printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
-//        printf("%lld\n", (dataVMAddress - lastTextSection));
+
+    if (newCmdsActive)
+    {
+        // use the lowest one
+        if (cryptFirstSectionAddress == 0 || cryptFirstSectionAddress > textFirstSectionAddress)
+            firstSectionAddress = textFirstSectionAddress;
+        else
+            firstSectionAddress = cryptFirstSectionAddress;
+
+        // calculate offset to start injection
+        uint8_t *injectionStartOffset = 0;
+        // address is positioned after all load commands
+        injectionStartOffset = address;
+        
+        // verify is there is enough space available
+        // this is the position in our buffer of the __text code!
+        uint8_t *injectionSectionOffset = targetBuffer + firstSectionAddress;
+        fprintf(stdout, "Free injection space: %x\n", (injectionSectionOffset-injectionStartOffset));
+    }
     else
-        printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
+    {
+        if (excelActive)
+            printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
+        //        printf("%lld\n", (dataVMAddress - lastTextSection));
+        else
+            printf("Available slack space in __TEXT is 0x%llx,%s\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
+    }
 }
 
 /*
