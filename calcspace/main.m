@@ -28,9 +28,9 @@ uint8_t newCmdsActive = 0;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
-static void process_target(uint8_t *targetBuffer, uint8_t allSections);
-static uint32_t get_header(uint8_t *targetBuffer, struct mach_header_64 *header);
-static void process_injectionspace(uint8_t *targetBuffer);
+static void process_target(const uint8_t *targetBuffer, uint8_t allSections);
+static uint32_t get_header(const uint8_t *targetBuffer, struct mach_header_64 *header);
+static void process_injectionspace(const uint8_t *targetBuffer);
 
 static void 
 help(const char *exe)
@@ -60,11 +60,11 @@ int main (int argc, char * argv[])
 {
     // required structure for long options
 	static struct option long_options[]={
-        { "all", no_argument, NULL, 'a' },
-        { "ios", no_argument, NULL, 'i' },
-        { "excel", no_argument, NULL, 'e' },
+        { "all",     no_argument, NULL, 'a' },
+        { "ios",     no_argument, NULL, 'i' },
+        { "excel",   no_argument, NULL, 'e' },
         { "newcmds", no_argument, NULL, 'n' },
-        { "free", no_argument, NULL, 'f' },
+        { "free",    no_argument, NULL, 'f' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
@@ -120,7 +120,7 @@ int main (int argc, char * argv[])
         exit(1);
     }
     
-    char *target;
+    char *target = NULL;
     @autoreleasepool {
 
         NSString *path = [NSString stringWithCString:(argv+optind)[0] encoding:NSUTF8StringEncoding];
@@ -217,7 +217,7 @@ int main (int argc, char * argv[])
  * aux function to get the mach header
  */
 static uint32_t
-get_header(uint8_t *targetBuffer, struct mach_header_64 *header)
+get_header(const uint8_t *targetBuffer, struct mach_header_64 *header)
 {
     uint32_t magic = *(uint32_t*)(targetBuffer);    
     uint32_t headerSize = 0;
@@ -241,7 +241,7 @@ get_header(uint8_t *targetBuffer, struct mach_header_64 *header)
 }
 
 static void 
-process_target(uint8_t *targetBuffer, uint8_t allSections)
+process_target(const uint8_t *targetBuffer, uint8_t allSections)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -253,7 +253,7 @@ process_target(uint8_t *targetBuffer, uint8_t allSections)
 
     headerSize = get_header(targetBuffer, &header);
     
-    address = targetBuffer + headerSize;
+    address = (uint8_t*)targetBuffer + headerSize;
     struct load_command *loadCmd;
 
     for (uint32_t i = 0; i < header.ncmds ; i++)
@@ -365,7 +365,6 @@ process_target(uint8_t *targetBuffer, uint8_t allSections)
 
     if (excelActive)
         printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
-    //        printf("%lld\n", (dataVMAddress - lastTextSection));
     else
         printf("Available slack space at the end of __TEXT is %lld bytes (%s)\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
 }
@@ -374,7 +373,7 @@ process_target(uint8_t *targetBuffer, uint8_t allSections)
  * calculate the free mach-o header space to inject new commands
  */
 static void 
-process_injectionspace(uint8_t *targetBuffer)
+process_injectionspace(const uint8_t *targetBuffer)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -384,11 +383,11 @@ process_injectionspace(uint8_t *targetBuffer)
     
     headerSize = get_header(targetBuffer, &header);
     
-    address = targetBuffer + headerSize;
+    address = (uint8_t*)targetBuffer + headerSize;
     struct load_command *loadCmd;
-    uint32_t firstSectionAddress = 0;
-    uint32_t textFirstSectionAddress = 0;
-    uint32_t cryptFirstSectionAddress = 0;
+    uint64_t firstSectionAddress = 0;
+    uint64_t textFirstSectionAddress = 0;
+    uint64_t cryptFirstSectionAddress = 0;
     
     for (uint32_t i = 0; i < header.ncmds ; i++)
     {
@@ -457,9 +456,9 @@ process_injectionspace(uint8_t *targetBuffer)
     // address is positioned after all load commands
     uint32_t headerEndAddress = (uint32_t)address;
     if (excelActive)
-        printf("%d,%s\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
+        printf("%lld,%s\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
     else
-        printf("Free injection space: %d bytes (%s)\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
+        printf("Free injection space: %lld bytes (%s)\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
 }
 
 /*
