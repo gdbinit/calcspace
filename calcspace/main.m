@@ -19,18 +19,37 @@
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
 #include <getopt.h>
+#include <histedit.h>
 
 #import <Foundation/Foundation.h>
 
-uint8_t iosActive   = 0;
-uint8_t excelActive = 0;
-uint8_t newCmdsActive = 0;
+//uint8_t iosActive   = 0;
+//uint8_t excelActive = 0;
+//uint8_t newCmdsActive = 0;
+
+struct options
+{
+    uint8_t isFat;
+    uint8_t allSections;
+    uint8_t excelActive;
+    uint8_t newCmdsActive;
+    uint8_t freeDataSpace;
+    uint8_t iosActive;
+};
+
+typedef struct options options_t;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
-static void process_target(const uint8_t *targetBuffer, uint8_t allSections);
+static void process_textspace(const uint8_t *targetBuffer, options_t options);
+static void process_target(const uint8_t *targetBuffer, options_t options);
 static uint32_t get_header(const uint8_t *targetBuffer, struct mach_header_64 *header);
-static void process_injectionspace(const uint8_t *targetBuffer);
+static void process_injectionspace(const uint8_t *targetBuffer, options_t options);
+static void remove_newline(const char *line);
+static void init_options(options_t *options);
+static void reset_options(options_t *options);
+char * prompt(EditLine *e);
+
 
 static void 
 help(const char *exe)
@@ -56,6 +75,11 @@ help(const char *exe)
     printf("-n : calculate free space to inject new commands\n");
 }
 
+char * prompt(EditLine *e) 
+{
+    return "calcspace> ";
+}
+
 int main (int argc, char * argv[])
 {
     // required structure for long options
@@ -65,6 +89,7 @@ int main (int argc, char * argv[])
         { "excel",   no_argument, NULL, 'e' },
         { "newcmds", no_argument, NULL, 'n' },
         { "free",    no_argument, NULL, 'f' },
+        { "help",    no_argument, NULL, 'h' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
@@ -72,34 +97,34 @@ int main (int argc, char * argv[])
     uint8_t allSections = 0;
     uint8_t freeDataSpace = 0;
     char *myProgramName = argv[0];
+    options_t options;
+    init_options(&options);
     
     // process command line options
-	while ((c = getopt_long(argc, argv, "aienf", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "haienf", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
 			case ':':
-				help(myProgramName);
-				exit(1);
-				break;
 			case '?':
+            case 'h':
 				help(myProgramName);
 				exit(1);
 				break;
             case 'a':
-                allSections = 1;
+                options.allSections = 1;
                 break;
             case 'i':
-                iosActive = 1;
+                options.iosActive = 1;
                 break;
             case 'e':
-                excelActive = 1;
+                options.excelActive = 1;
                 break;
             case 'n':
-                newCmdsActive = 1;
+                options.newCmdsActive = 1;
                 break;
             case 'f':
-                freeDataSpace = 1;
+                options.freeDataSpace = 1;
                 break;
 			default:
 				help(myProgramName);
@@ -107,12 +132,12 @@ int main (int argc, char * argv[])
 		}
 	}
 
-    if (optind <= 1 || argc-optind < 1 )
-    {
-        fprintf(stderr, "[ERROR] Invalid number of arguments!\n");
-        help(myProgramName);
-        exit(1);
-    }
+//    if (optind <= 1 || argc-optind < 1 )
+//    {
+//        fprintf(stderr, "[ERROR] Invalid number of arguments!\n");
+//        help(myProgramName);
+//        exit(1);
+//    }
     
     if (!freeDataSpace && allSections)
     {
@@ -132,7 +157,7 @@ int main (int argc, char * argv[])
         {
             printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
             NSString *tempString1;
-            if (iosActive)
+            if (options.iosActive)
                 tempString1 = path;
             else
                 tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
@@ -153,15 +178,14 @@ int main (int argc, char * argv[])
     fileSize = read_target(&targetBuffer, target);
     
     // verify if it's a valid mach-o target
-    uint8_t isFat = 0;
     uint32_t magic = *(uint32_t*)(targetBuffer);
     if (magic == FAT_CIGAM)
     {
-        isFat = 1;
+        options.isFat = 1;
     }
     else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
     {
-        isFat = 0;
+        options.isFat = 0;
     }
     else
     {
@@ -169,48 +193,114 @@ int main (int argc, char * argv[])
         exit(1);
     }
     free(target);
-    // target is a fat binary so we iterate thru all binaries inside
-    if (isFat)
+    
+    // no options given so go to interactive mode
+    if (optind <= 1 || argc-optind < 1 )
     {
-#if DEBUG
-        printf("[DEBUG] Target is fat binary!\n");
-#endif
-        struct fat_header *fatheader_ptr = (struct fat_header *)targetBuffer;
-        uint32_t nrFatArch = ntohl(fatheader_ptr->nfat_arch);
-        // pointer to the first fat_arch structure
-        struct fat_arch *fatArch = (struct fat_arch*)(targetBuffer + sizeof(struct fat_header));
-        uint8_t *address = targetBuffer;
-        for (uint32_t i = 0; i < nrFatArch ; i++)
-        {
-#if DEBUG
-            printf("[DEBUG] Processing fat binary nr %d of %d (cpu 0x%x)\n", i, nrFatArch, ntohl(fatArch->cputype));
-#endif
-            // position the buffer into the address and call the function
-            address = targetBuffer + ntohl(fatArch->offset);
-            if (ntohl(fatArch->cputype) == CPU_TYPE_POWERPC || ntohl(fatArch->cputype) == CPU_TYPE_POWERPC64)
-            {
-                // not supported for now or never
-            }
-            else
-            {
-                if (newCmdsActive)
-                    process_injectionspace(address);
-                if (freeDataSpace)
-                    process_target(address, allSections);
-            }
-            fatArch++;
+        /* This holds all the state for our line editor */
+        EditLine *el;
+        
+        /* This holds the info for our history */
+        History *myhistory;
+        
+        /* Temp variables */
+        int count;
+        const char *line;
+        int keepreading = 1;
+        HistEvent ev;
+        
+        /* Initialize the EditLine state to use our prompt function and
+         emacs style editing. */
+        
+        el = el_init(argv[0], stdin, stdout, stderr);
+        el_set(el, EL_PROMPT, &prompt);
+        el_set(el, EL_EDITOR, "emacs");
+        
+        /* Initialize the history */
+        myhistory = history_init();
+        if (myhistory == 0) {
+            fprintf(stderr, "history could not be initialized\n");
+            return 1;
         }
+        
+        /* Set the size of the history */
+        history(myhistory, &ev, H_SETSIZE, 800);
+        
+        /* This sets up the call back functions for history functionality */
+        el_set(el, EL_HIST, history, myhistory);
+        printf(" _____     _     _____ \n");                
+        printf("|     |___| |___|   __|___ ___ ___ ___ \n");
+        printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
+        printf("|_____|__,|_|___|_____|  _|__,|___|___|\n");
+        printf("                      |_|              \n");
+        printf("Calculate free space in mach-o headers\n");
+        printf("(c) fG!, 2012 - reverser@put.as\n\n");
+
+        while (keepreading) {
+            /* count is the number of characters read.
+             line is a const char* of our command line with the tailing \n */
+            line = el_gets(el, &count);
+            
+            /* In order to use our history we have to explicitly add commands
+             to the history */
+            if (count > 0) {
+                history(myhistory, &ev, H_ENTER, line);
+                
+                remove_newline(line);
+                
+                if (strcmp(line, "quit") == 0)
+                    break;
+                else if (strcmp(line, "new") == 0)
+                {
+                    options.newCmdsActive = 1;
+                    process_target(targetBuffer, options);
+                }
+                else if (strcmp(line, "free") == 0)
+                {
+                    options.freeDataSpace = 1;
+                    process_target(targetBuffer, options);
+                }
+                reset_options(&options);
+            }
+        }
+        /* Clean up our memory */
+        history_end(myhistory);
+        el_end(el);
+        goto end;
     }
-    // non fat so we just have to deal with a single binary
     else
     {
-        if (newCmdsActive)
-            process_injectionspace(targetBuffer);
-        if (freeDataSpace)
-            process_target(targetBuffer, allSections);
+        process_target(targetBuffer, options);
     }
+end:
     free(targetBuffer);
     return 0;
+}
+
+static void 
+remove_newline(const char *line)
+{
+    char *pline = (char*)line;
+    if ((pline = strchr(line, '\n')) != NULL)
+        *pline = '\0';
+}
+
+static void 
+init_options(options_t *options)
+{
+    options->allSections = 0;
+    options->excelActive = 0;
+    options->freeDataSpace = 0;
+    options->newCmdsActive = 0;
+    options->iosActive = 0;
+    options->isFat = 0;
+}
+
+static void 
+reset_options(options_t *options)
+{
+    options->freeDataSpace = 0;
+    options->newCmdsActive = 0;
 }
 
 /*
@@ -240,8 +330,59 @@ get_header(const uint8_t *targetBuffer, struct mach_header_64 *header)
     return headerSize;
 }
 
+/*
+ * function that will process the target and act according user options
+ */
 static void 
-process_target(const uint8_t *targetBuffer, uint8_t allSections)
+process_target(const uint8_t *targetBuffer, options_t options)
+{
+    // target is a fat binary so we iterate thru all binaries inside
+    if (options.isFat)
+    {
+#if DEBUG
+        printf("[DEBUG] Target is fat binary!\n");
+#endif
+        struct fat_header *fatheader_ptr = (struct fat_header *)targetBuffer;
+        uint32_t nrFatArch = ntohl(fatheader_ptr->nfat_arch);
+        // pointer to the first fat_arch structure
+        struct fat_arch *fatArch = (struct fat_arch*)(targetBuffer + sizeof(struct fat_header));
+        uint8_t *address = (uint8_t *)targetBuffer;
+        for (uint32_t i = 0; i < nrFatArch ; i++)
+        {
+#if DEBUG
+            printf("[DEBUG] Processing fat binary nr %d of %d (cpu 0x%x)\n", i, nrFatArch, ntohl(fatArch->cputype));
+#endif
+            // position the buffer into the address and call the function
+            address = (uint8_t *)targetBuffer + ntohl(fatArch->offset);
+            if (ntohl(fatArch->cputype) == CPU_TYPE_POWERPC || ntohl(fatArch->cputype) == CPU_TYPE_POWERPC64)
+            {
+                // not supported for now or never
+            }
+            else
+            {
+                if (options.newCmdsActive)
+                    process_injectionspace(address, options);
+                if (options.freeDataSpace)
+                    process_textspace(address, options);
+            }
+            fatArch++;
+        }
+    }
+    // non fat so we just have to deal with a single binary
+    else
+    {
+        if (options.newCmdsActive)
+            process_injectionspace(targetBuffer, options);
+        if (options.freeDataSpace)
+            process_textspace(targetBuffer, options);
+    }    
+}
+
+/*
+ * function to process __TEXT related space calculations
+ */
+static void 
+process_textspace(const uint8_t *targetBuffer, options_t options)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -267,7 +408,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
             struct segment_command *segCmd = (struct segment_command*)address;
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
-                if (allSections && segCmd->nsects > 1)
+                if (options.allSections && segCmd->nsects > 1)
                 {
                     for (uint32_t x = 0; x < segCmd->nsects-1; x++)
                     {
@@ -278,7 +419,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
                         printf("Current section address: %x\n", currentSectionCmd->addr);
                         printf("Next section address: %x\n", nextSectionCmd->addr);
 #endif
-                        if (excelActive)
+                        if (options.excelActive)
                         {
                             printf("%d,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
@@ -316,7 +457,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
             if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
             {
                 // compute the difference between all __TEXT sections
-                if (allSections && segCmd->nsects > 1)
+                if (options.allSections && segCmd->nsects > 1)
                 {
                     for (uint32_t x = 0; x < segCmd->nsects-1; x++)
                     {
@@ -327,7 +468,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
                         printf("Current section address: %x\n", currentSectionCmd->addr);
                         printf("Next section address: %x\n", nextSectionCmd->addr);
 #endif
-                        if (excelActive)
+                        if (options.excelActive)
                         {
                             printf("%lld,", nextSectionCmd->addr - (currentSectionCmd->addr+currentSectionCmd->size));
                         }
@@ -363,7 +504,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
         address += loadCmd->cmdsize;
     }
 
-    if (excelActive)
+    if (options.excelActive)
         printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
     else
         printf("Available slack space at the end of __TEXT is %lld bytes (%s)\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
@@ -373,7 +514,7 @@ process_target(const uint8_t *targetBuffer, uint8_t allSections)
  * calculate the free mach-o header space to inject new commands
  */
 static void 
-process_injectionspace(const uint8_t *targetBuffer)
+process_injectionspace(const uint8_t *targetBuffer, options_t options)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -455,7 +596,7 @@ process_injectionspace(const uint8_t *targetBuffer)
     
     // address is positioned after all load commands
     uint32_t headerEndAddress = (uint32_t)address;
-    if (excelActive)
+    if (options.excelActive)
         printf("%lld,%s\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
     else
         printf("Free injection space: %lld bytes (%s)\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");

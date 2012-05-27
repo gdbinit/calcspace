@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DE6429C61571A92200F409E4 /* libedit.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DE6429C51571A92200F409E4 /* libedit.dylib */; };
+		DE6429C81571A92B00F409E4 /* libcurses.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DE6429C71571A92B00F409E4 /* libcurses.dylib */; };
 		DEA784E1156B28EA0052657D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DEA784E0156B28EA0052657D /* main.m */; };
 		DEA784E3156B28EA0052657D /* calcspace.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DEA784E2156B28EA0052657D /* calcspace.1 */; };
 		DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEA78506156BEDAC0052657D /* Foundation.framework */; };
@@ -26,6 +28,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DE6429C51571A92200F409E4 /* libedit.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libedit.dylib; path = usr/lib/libedit.dylib; sourceTree = SDKROOT; };
+		DE6429C71571A92B00F409E4 /* libcurses.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcurses.dylib; path = usr/lib/libcurses.dylib; sourceTree = SDKROOT; };
 		DEA784DC156B28EA0052657D /* calcspace */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = calcspace; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEA784E0156B28EA0052657D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		DEA784E2156B28EA0052657D /* calcspace.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = calcspace.1; sourceTree = "<group>"; };
@@ -37,6 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DE6429C81571A92B00F409E4 /* libcurses.dylib in Frameworks */,
+				DE6429C61571A92200F409E4 /* libedit.dylib in Frameworks */,
 				DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -47,6 +53,8 @@
 		DEA784D1156B28EA0052657D = {
 			isa = PBXGroup;
 			children = (
+				DE6429C71571A92B00F409E4 /* libcurses.dylib */,
+				DE6429C51571A92200F409E4 /* libedit.dylib */,
 				DEA78506156BEDAC0052657D /* Foundation.framework */,
 				DEA784DF156B28EA0052657D /* calcspace */,
 				DEA784DD156B28EA0052657D /* Products */,
