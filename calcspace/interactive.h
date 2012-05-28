@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <strings.h>
-#include <histedit.h>
 #include <editline/readline.h>
 #include <locale.h>
 #include <ctype.h>

@@ -16,28 +16,46 @@
 
 #include "interactive.h"
 
-typedef int rl_icpfunc_t (char *);
+typedef struct {
+    uint8_t *targetBuffer;
+    options_t *options;
+    char *arg;
+} cmd_options_t;
+
+typedef int rl_icpfunc_t (cmd_options_t);
 typedef struct {
     char *name;                   /* User printable name of the function. */
-    //    rl_icpfunc_t *func;           /* Function to call to do the job. */
+    rl_icpfunc_t *func;           /* Function to call to do the job. */
     char *doc;                    /* Documentation for this function.  */
 } COMMAND;
 
+static int cmd_quit(cmd_options_t cmd_options);
+static int cmd_new(cmd_options_t cmd_options);
+static int cmd_free(cmd_options_t cmd_options);
+static int cmd_excel(cmd_options_t cmd_options);
+static int cmd_all(cmd_options_t cmd_options);
+static int cmd_ios(cmd_options_t cmd_options);
+static int cmd_help(cmd_options_t cmd_options);
+
 COMMAND commands[] = {
-    { "quit", "quit" },
-    { "new", "calculate free space for new commands" },
-    { "free", "calculate free __TEXT space" },
-    { "help", "Display this text" },
-    { "?", "Synonym for `help'" },
-    { (char *)NULL, (char *)NULL }
-    //    { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL }
+    { "quit",  cmd_quit,  "Quit utility" },
+    { "new",   cmd_new,   "Calculate free space for new commands" },
+    { "free",  cmd_free,  "Calculate free __TEXT space" },
+    { "excel", cmd_excel, "Set output to excel mode" },
+    { "all",   cmd_all,   "Set free command to calculate space for all sections" },
+    { "ios",   cmd_ios,   "Set target as an iOS application" },
+    { "help",  cmd_help,  "Display this text" },
+    { "?",     cmd_help,  "Synonym for `help'" },
+//    { (char *)NULL, (char *)NULL }
+    { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL }
 };
 
-char * stripwhite (char *string);
-void initialize_readline(void);
-char * dupstr(char* s);
-int execute_line(char *line,const uint8_t *targetBuffer, options_t *options);
-COMMAND *find_command(char *name);
+
+static char * stripwhite (char *string);
+static void initialize_readline(void);
+static char * dupstr(char* s);
+static int execute_line(char *line,const uint8_t *targetBuffer, options_t *options);
+static COMMAND *find_command(char *name);
 
 extern void init_options(options_t *options);
 extern void reset_options(options_t *options);
@@ -49,6 +67,8 @@ void start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
     char *line, *s;
     setlocale(LC_CTYPE, "");
     stifle_history(7);
+    initialize_readline();
+    
     printf(" _____     _     _____ \n");                
     printf("|     |___| |___|   __|___ ___ ___ ___ \n");
     printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
@@ -56,7 +76,7 @@ void start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
     printf("                      |_|              \n");
     printf("Calculate free space in mach-o headers\n");
     printf("(c) fG!, 2012 - reverser@put.as\n\n");
-    initialize_readline();
+    
     for ( ; done == 0; )
     {
         // new line is chomp'ed
@@ -70,16 +90,19 @@ void start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
          and execute it. */
         s = stripwhite(line);
         
-        if (*s) {
-            
+        if (*s) 
+        {
             char* expansion;
             int result;
             
             result = history_expand(s, &expansion);
             
-            if (result < 0 || result == 2) {
+            if (result < 0 || result == 2) 
+            {
                 fprintf(stderr, "%s\n", expansion);
-            } else {
+            } 
+            else 
+            {
                 add_history(expansion);
                 execute_line(expansion, targetBuffer, options);
             }
@@ -94,17 +117,16 @@ void start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
 /*                  Interface to Readline Completion                */
 /*                                                                  */
 /* **************************************************************** */
-/* from fileman.c @ editline source code */
 
-char *command_generator(const char *, int);
-char **fileman_completion(const char *, int, int);
+static char *command_generator(const char *, int);
+static char **fileman_completion(const char *, int, int);
 
 /*
  * Tell the GNU Readline library how to complete.  We want to try to
  * complete on command names if this is the first word in the line, or
  * on filenames if not. 
  */
-void
+static void
 initialize_readline(void)
 {
     /* Allow conditional parsing of the ~/.inputrc file. */
@@ -121,7 +143,7 @@ initialize_readline(void)
  * contents of rl_line_buffer in case we want to do some simple
  * parsing.  Returnthe array of matches, or NULL if there aren't any. 
  */
-char **
+static char **
 fileman_completion (const char* text, int start, int end)
 {
     char **matches;
@@ -142,7 +164,7 @@ fileman_completion (const char* text, int start, int end)
  * STATE lets us know whether to start from scratch; without any state
  * (i.e. STATE == 0), then we start at the top of the list. 
  */
-char *
+static char *
 command_generator (text, state)
 const char *text;
 int state;
@@ -173,7 +195,7 @@ int state;
     return ((char *)NULL);
 }
 
-char *
+static char *
 dupstr (char* s)
 {
     char *r;
@@ -188,7 +210,7 @@ dupstr (char* s)
  * into STRING. 
  * from fileman.c source
  */
-char *
+static char *
 stripwhite (char *string)
 {
     register char *s, *t;
@@ -210,7 +232,7 @@ stripwhite (char *string)
 /* 
  * Execute a command line. 
  */
-int
+static int
 execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
 {
     register int i;
@@ -237,29 +259,49 @@ execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
         return (-1);
     }
     
-    if (strcmp(word, "quit") == 0)
-        exit(0);
-    else if (strcmp(word, "new") == 0)
-    {
-        options->newCmdsActive = 1;
-        process_target(targetBuffer, *options);
-    }
-    else if (strcmp(word, "free") == 0)
-    {
-        options->freeDataSpace = 1;
-        process_target(targetBuffer, *options);
-    }
-    reset_options(options);
+    cmd_options_t cmd_options;
+    cmd_options.targetBuffer = (uint8_t*)targetBuffer;
+    cmd_options.options = options;
     
-    return 0;
-    //    /* Get argument to command, if any. */
-    //    while (isspace (line[i]))
-    //        i++;
-    //    
-    //    word = line + i;
-    //    
-    //    /* Call the function. */
-    //    return ((*(command->func)) (word));
+    /* Get argument to command, if any. */
+    while (isspace (line[i]))
+        i++;
+    
+    word = line + i;
+
+    cmd_options.arg = word;
+    
+    return ((*(command->func)) (cmd_options));
+    
+//    if (strcmp(word, "quit") == 0)
+//        exit(0);
+//    else if (strcmp(word, "new") == 0)
+//    {
+//        options->newCmdsActive = 1;
+//        process_target(targetBuffer, *options);
+//    }
+//    else if (strcmp(word, "free") == 0)
+//    {
+//        options->freeDataSpace = 1;
+//        process_target(targetBuffer, *options);
+//    }
+//    // we need to reread target ? FIXME
+//    else if (strcmp(word, "ios") == 0)
+//    {
+//        options->iosActive = ~options->iosActive;
+//    }
+//    else if (strcmp(word, "excel") == 0)
+//    {
+//        options->excelActive = ~options->excelActive;
+//    }
+//    else if (strcmp(word, "all") == 0)
+//    {
+//        options->allSections = ~options->allSections;
+//    }
+//
+//    reset_options(options);
+//    
+//    return 0;
 }
 
 /*
@@ -267,7 +309,7 @@ execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
  * command. 
  * Return a NULL pointer if NAME isn't a command name. 
  */
-COMMAND *
+static COMMAND *
 find_command (char *name)
 {
     register int i;
@@ -279,3 +321,88 @@ find_command (char *name)
     return ((COMMAND *)NULL);
 }
 
+/* Print out help for ARG, or for all of the commands if ARG is
+ not present. */
+static int
+cmd_help (cmd_options_t cmd_options)
+{
+    register int i;
+    int printed = 0;
+    
+    for (i = 0; commands[i].name; i++)
+    {
+        if (!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0))
+        {
+            printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
+            printed++;
+        }
+    }
+    
+    if (!printed)
+    {
+        printf ("No commands match `%s'. Available commands are:\n", cmd_options.arg);
+        
+        for (i = 0; commands[i].name; i++)
+        {
+            /* Print in six columns. */
+            if (printed == 6)
+            {
+                printed = 0;
+                printf ("\n");
+            }
+            
+            printf ("%s\t", commands[i].name);
+            printed++;
+        }
+        
+        if (printed)
+            printf ("\n");
+    }
+    return (0);
+}
+
+static int
+cmd_quit (cmd_options_t cmd_options)
+{
+    printf("Bye bye...!\n");
+    exit(0);
+}
+
+static int
+cmd_new (cmd_options_t cmd_options)
+{
+    cmd_options.options->newCmdsActive = 1;
+    process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    reset_options(cmd_options.options);
+    return 0;
+}
+
+static int
+cmd_free (cmd_options_t cmd_options)
+{
+    cmd_options.options->freeDataSpace = 1;
+    process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    reset_options(cmd_options.options);
+    return 0;
+}
+
+static int
+cmd_excel (cmd_options_t cmd_options)
+{
+    cmd_options.options->excelActive = ~cmd_options.options->excelActive;
+    return 0;
+}
+
+static int
+cmd_all (cmd_options_t cmd_options)
+{
+    cmd_options.options->allSections = ~cmd_options.options->allSections;
+    return 0;
+}
+
+static int
+cmd_ios (cmd_options_t cmd_options)
+{
+    cmd_options.options->iosActive = ~cmd_options.options->iosActive;
+    return 0;
+}

@@ -12,7 +12,7 @@
  *  The objective is to verify if there's enough space for code injection.
  */
 
-#include "structures.h"
+#import <Foundation/Foundation.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -20,11 +20,10 @@
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
 #include <getopt.h>
-#include <histedit.h>
 #include <editline/readline.h>
-#import <Foundation/Foundation.h>
+#include "structures.h"
 #include "commands.h"
-#include "macho.h"
+//#include "macho.h"
 #include "interactive.h"
 
 //uint8_t iosActive   = 0;
@@ -36,6 +35,7 @@ static void help(const char *exe);
 static void remove_newline(const char *line);
 void init_options(options_t *options);
 void reset_options(options_t *options);
+void init_target(char *targetPath, uint8_t **targetBuffer, options_t *options);
 
 static void 
 help(const char *exe)
@@ -130,54 +130,55 @@ int main (int argc, char * argv[])
         exit(1);
     }
     
-    char *target = NULL;
-    @autoreleasepool {
-
-        NSString *path = [NSString stringWithCString:(argv+optind)[0] encoding:NSUTF8StringEncoding];
-        NSBundle *bundle = [NSBundle bundleWithPath:path];
-        NSDictionary *plistData = [bundle infoDictionary];
-
-        NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
-        if (targetExe != nil)
-        {
-            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
-            NSString *tempString1;
-            if (options.iosActive)
-                tempString1 = path;
-            else
-                tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
-
-            NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
-            target = malloc([tempTarget length] * sizeof(char)+1);
-            [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
-        }
-        else
-        {
-            fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
-            exit(0);
-        }
-    }    
+//    char *target = NULL;
+//    @autoreleasepool {
+//
+//        NSString *path = [NSString stringWithCString:(argv+optind)[0] encoding:NSUTF8StringEncoding];
+//        NSBundle *bundle = [NSBundle bundleWithPath:path];
+//        NSDictionary *plistData = [bundle infoDictionary];
+//
+//        NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
+//        if (targetExe != nil)
+//        {
+//            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
+//            NSString *tempString1;
+//            if (options.iosActive)
+//                tempString1 = path;
+//            else
+//                tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
+//
+//            NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
+//            target = malloc([tempTarget length] * sizeof(char)+1);
+//            [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
+//        }
+//        else
+//        {
+//            fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
+//            exit(0);
+//        }
+//    }    
     uint8_t *targetBuffer;
+    init_target((argv+optind)[0], &targetBuffer, &options);
     // read target file into a buffer
-    uint64_t fileSize = 0;
-    fileSize = read_target(&targetBuffer, target);
+//    uint64_t fileSize = 0;
+//    fileSize = read_target(&targetBuffer, target);
     
     // verify if it's a valid mach-o target
-    uint32_t magic = *(uint32_t*)(targetBuffer);
-    if (magic == FAT_CIGAM)
-    {
-        options.isFat = 1;
-    }
-    else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
-    {
-        options.isFat = 0;
-    }
-    else
-    {
-		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
-        exit(1);
-    }
-    free(target);
+//    uint32_t magic = *(uint32_t*)(targetBuffer);
+//    if (magic == FAT_CIGAM)
+//    {
+//        options.isFat = 1;
+//    }
+//    else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
+//    {
+//        options.isFat = 0;
+//    }
+//    else
+//    {
+//		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
+//        exit(1);
+//    }
+//    free(target);
     
     // no options given so go to interactive mode
     if (optind <= 1 || argc-optind < 1 )
@@ -218,6 +219,59 @@ reset_options(options_t *options)
 {
     options->freeDataSpace = 0;
     options->newCmdsActive = 0;
+}
+
+void 
+init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
+{
+    char *target = NULL;
+    @autoreleasepool {
+        
+        NSString *path = [NSString stringWithCString:targetPath encoding:NSUTF8StringEncoding];
+        NSBundle *bundle = [NSBundle bundleWithPath:path];
+        NSDictionary *plistData = [bundle infoDictionary];
+        
+        NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
+        if (targetExe != nil)
+        {
+            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
+            NSString *tempString1;
+            if (options->iosActive)
+                tempString1 = path;
+            else
+                tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
+            
+            NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
+            target = malloc([tempTarget length] * sizeof(char)+1);
+            [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
+        }
+        else
+        {
+            fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
+            exit(0);
+        }
+    }    
+//    uint8_t *targetBuffer;
+    // read target file into a buffer
+    uint64_t fileSize = 0;
+    fileSize = read_target(targetBuffer, target);
+    
+    // verify if it's a valid mach-o target
+    uint32_t magic = *(uint32_t*)(*targetBuffer);
+    if (magic == FAT_CIGAM)
+    {
+        options->isFat = 1;
+    }
+    else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
+    {
+        options->isFat = 0;
+    }
+    else
+    {
+		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
+        exit(1);
+    }
+    free(target); 
 }
 
 /*
