@@ -12,6 +12,9 @@
 		DEA784E1156B28EA0052657D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DEA784E0156B28EA0052657D /* main.m */; };
 		DEA784E3156B28EA0052657D /* calcspace.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = DEA784E2156B28EA0052657D /* calcspace.1 */; };
 		DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEA78506156BEDAC0052657D /* Foundation.framework */; };
+		DEC7A5381573C32D0016105B /* commands.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A5371573C32D0016105B /* commands.m */; };
+		DEC7A53F1573C5E90016105B /* macho.c in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A53D1573C5E90016105B /* macho.c */; };
+		DEC7A5421573C7250016105B /* interactive.c in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A5401573C7250016105B /* interactive.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -34,6 +37,13 @@
 		DEA784E0156B28EA0052657D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		DEA784E2156B28EA0052657D /* calcspace.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = calcspace.1; sourceTree = "<group>"; };
 		DEA78506156BEDAC0052657D /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		DEC7A5361573C32D0016105B /* commands.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = commands.h; sourceTree = "<group>"; };
+		DEC7A5371573C32D0016105B /* commands.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = commands.m; sourceTree = "<group>"; };
+		DEC7A53C1573C5250016105B /* structures.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = structures.h; sourceTree = "<group>"; };
+		DEC7A53D1573C5E90016105B /* macho.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = macho.c; sourceTree = "<group>"; };
+		DEC7A53E1573C5E90016105B /* macho.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = macho.h; sourceTree = "<group>"; };
+		DEC7A5401573C7250016105B /* interactive.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = interactive.c; sourceTree = "<group>"; };
+		DEC7A5411573C7250016105B /* interactive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = interactive.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,8 +80,15 @@
 		DEA784DF156B28EA0052657D /* calcspace */ = {
 			isa = PBXGroup;
 			children = (
+				DEC7A5371573C32D0016105B /* commands.m */,
+				DEC7A5361573C32D0016105B /* commands.h */,
+				DEC7A53C1573C5250016105B /* structures.h */,
 				DEA784E0156B28EA0052657D /* main.m */,
 				DEA784E2156B28EA0052657D /* calcspace.1 */,
+				DEC7A53D1573C5E90016105B /* macho.c */,
+				DEC7A53E1573C5E90016105B /* macho.h */,
+				DEC7A5401573C7250016105B /* interactive.c */,
+				DEC7A5411573C7250016105B /* interactive.h */,
 			);
 			path = calcspace;
 			sourceTree = "<group>";
@@ -137,6 +154,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEA784E1156B28EA0052657D /* main.m in Sources */,
+				DEC7A5381573C32D0016105B /* commands.m in Sources */,
+				DEC7A53F1573C5E90016105B /* macho.c in Sources */,
+				DEC7A5421573C7250016105B /* interactive.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
