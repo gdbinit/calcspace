@@ -53,9 +53,7 @@
 		DEA784D1156B28EA0052657D = {
 			isa = PBXGroup;
 			children = (
-				DE6429C71571A92B00F409E4 /* libcurses.dylib */,
-				DE6429C51571A92200F409E4 /* libedit.dylib */,
-				DEA78506156BEDAC0052657D /* Foundation.framework */,
+				DEC7A5351573BEB00016105B /* Libraries */,
 				DEA784DF156B28EA0052657D /* calcspace */,
 				DEA784DD156B28EA0052657D /* Products */,
 			);
@@ -76,6 +74,16 @@
 				DEA784E2156B28EA0052657D /* calcspace.1 */,
 			);
 			path = calcspace;
+			sourceTree = "<group>";
+		};
+		DEC7A5351573BEB00016105B /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+				DE6429C71571A92B00F409E4 /* libcurses.dylib */,
+				DE6429C51571A92200F409E4 /* libedit.dylib */,
+				DEA78506156BEDAC0052657D /* Foundation.framework */,
+			);
+			name = Libraries;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
