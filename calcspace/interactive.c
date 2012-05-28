@@ -337,6 +337,7 @@ cmd_help (cmd_options_t cmd_options)
                 printed++;
             }
         }
+        printf("Note: execute the configuration commands to enable/disable each setting.\n");
     }
     
     if (!printed)
@@ -374,6 +375,8 @@ cmd_new (cmd_options_t cmd_options)
 {
     cmd_options.options->newCmdsActive = 1;
     process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    // reset the structure for the commands values
+    // else it would display both commands
     reset_options(cmd_options.options);
     return 0;
 }
@@ -383,6 +386,8 @@ cmd_free (cmd_options_t cmd_options)
 {
     cmd_options.options->freeDataSpace = 1;
     process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    // reset the structure for the commands values
+    // else it would display both commands
     reset_options(cmd_options.options);
     return 0;
 }
