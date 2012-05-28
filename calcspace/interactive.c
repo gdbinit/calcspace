@@ -22,11 +22,14 @@ typedef struct {
     char *arg;
 } cmd_options_t;
 
+enum cmd_type { CMD, CONFIG };
+
 typedef int rl_icpfunc_t (cmd_options_t);
 typedef struct {
     char *name;                   /* User printable name of the function. */
     rl_icpfunc_t *func;           /* Function to call to do the job. */
     char *doc;                    /* Documentation for this function.  */
+    enum cmd_type type;                 /* type of command: 0-cmd, 1-configuration */
 } COMMAND;
 
 static int cmd_quit(cmd_options_t cmd_options);
@@ -38,16 +41,16 @@ static int cmd_ios(cmd_options_t cmd_options);
 static int cmd_help(cmd_options_t cmd_options);
 
 COMMAND commands[] = {
-    { "quit",  cmd_quit,  "Quit utility" },
-    { "new",   cmd_new,   "Calculate free space for new commands" },
-    { "free",  cmd_free,  "Calculate free __TEXT space" },
-    { "excel", cmd_excel, "Set output to excel mode" },
-    { "all",   cmd_all,   "Set free command to calculate space for all sections" },
-    { "ios",   cmd_ios,   "Set target as an iOS application" },
-    { "help",  cmd_help,  "Display this text" },
-    { "?",     cmd_help,  "Synonym for `help'" },
-//    { (char *)NULL, (char *)NULL }
-    { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL }
+    { "quit",  cmd_quit,  "Exit this utility.", CMD },
+    { "exit",  cmd_quit,  "Exit this utility.", CMD },
+    { "new",   cmd_new,   "Calculate free space for new commands.", CMD },
+    { "free",  cmd_free,  "Calculate free __TEXT space.",CMD },
+    { "excel", cmd_excel, "Set output to excel mode.", CONFIG },
+    { "all",   cmd_all,   "Set free command to calculate space for all sections.", CONFIG },
+    { "ios",   cmd_ios,   "Set target as an iOS application.", CONFIG },
+    { "help",  cmd_help,  "Display this text.", CMD },
+    { "?",     cmd_help,  "Synonym for `help'.", CMD },
+    { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL, CMD }
 };
 
 
@@ -62,7 +65,8 @@ extern void reset_options(options_t *options);
 
 int done = 0;
 
-void start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
+void 
+start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
 {
     char *line, *s;
     setlocale(LC_CTYPE, "");
@@ -272,36 +276,6 @@ execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
     cmd_options.arg = word;
     
     return ((*(command->func)) (cmd_options));
-    
-//    if (strcmp(word, "quit") == 0)
-//        exit(0);
-//    else if (strcmp(word, "new") == 0)
-//    {
-//        options->newCmdsActive = 1;
-//        process_target(targetBuffer, *options);
-//    }
-//    else if (strcmp(word, "free") == 0)
-//    {
-//        options->freeDataSpace = 1;
-//        process_target(targetBuffer, *options);
-//    }
-//    // we need to reread target ? FIXME
-//    else if (strcmp(word, "ios") == 0)
-//    {
-//        options->iosActive = ~options->iosActive;
-//    }
-//    else if (strcmp(word, "excel") == 0)
-//    {
-//        options->excelActive = ~options->excelActive;
-//    }
-//    else if (strcmp(word, "all") == 0)
-//    {
-//        options->allSections = ~options->allSections;
-//    }
-//
-//    reset_options(options);
-//    
-//    return 0;
 }
 
 /*
@@ -329,12 +303,39 @@ cmd_help (cmd_options_t cmd_options)
     register int i;
     int printed = 0;
     
-    for (i = 0; commands[i].name; i++)
+    // print the help for a specific command
+    if (*(cmd_options.arg))
     {
-        if (!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0))
+        for (i = 0; commands[i].name; i++)
         {
-            printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
-            printed++;
+            if (strcmp (cmd_options.arg, commands[i].name) == 0)
+            {
+                printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
+                printed++;
+            }
+        }
+    }
+    // print all available commands
+    else
+    {
+        // print commands
+        printf("Available commands:\n");
+        for (i = 0; commands[i].name; i++)
+        {
+            if ((!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0)) && commands[i].type == CMD)
+            {
+                printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
+                printed++;
+            }
+        }
+        printf("Configuration options:\n");
+        for (i = 0; commands[i].name; i++)
+        {
+            if ((!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0)) && commands[i].type == CONFIG)
+            {
+                printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
+                printed++;
+            }
         }
     }
     
