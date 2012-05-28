@@ -39,6 +39,7 @@ static int cmd_excel(cmd_options_t cmd_options);
 static int cmd_all(cmd_options_t cmd_options);
 static int cmd_ios(cmd_options_t cmd_options);
 static int cmd_help(cmd_options_t cmd_options);
+static int cmd_target(cmd_options_t cmd_options);
 
 COMMAND commands[] = {
     { "quit",  cmd_quit,  "Exit this utility.", CMD },
@@ -50,6 +51,7 @@ COMMAND commands[] = {
     { "ios",   cmd_ios,   "Set target as an iOS application.", CONFIG },
     { "help",  cmd_help,  "Display this text.", CMD },
     { "?",     cmd_help,  "Synonym for `help'.", CMD },
+    { "target",cmd_target,"Read a new target application", CMD },
     { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL, CMD }
 };
 
@@ -62,12 +64,24 @@ static COMMAND *find_command(char *name);
 
 extern void init_options(options_t *options);
 extern void reset_options(options_t *options);
+extern void init_target(char *targetPath, uint8_t **targetBuffer, options_t *options);
 
 int done = 0;
 
+uint8_t *iTargetBuffer = NULL;
+options_t iOptions;
+
 void 
-start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
+start_interactive_mode(const char *targetName)
+//start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
 {
+    // if there is already a target, initialize our stuff
+    if (targetName != NULL)
+    {
+        printf("we have a target configured\n");
+        init_options(&iOptions);
+        init_target((char*)targetName, &iTargetBuffer, &iOptions);
+    }
     char *line, *s;
     setlocale(LC_CTYPE, "");
     stifle_history(7);
@@ -108,7 +122,7 @@ start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
             else 
             {
                 add_history(expansion);
-                execute_line(expansion, targetBuffer, options);
+                execute_line(expansion, iTargetBuffer, &iOptions);
             }
             free(expansion);
         }
@@ -237,11 +251,11 @@ stripwhite (char *string)
  * Execute a command line. 
  */
 static int
-execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
+execute_line (char *line,const uint8_t *buf, options_t *options)
 {
     register int i;
     COMMAND *command;
-    char *word;
+    char *word = NULL;
     
     /* Isolate the command word. */
     i = 0;
@@ -264,7 +278,7 @@ execute_line (char *line,const uint8_t *targetBuffer, options_t *options)
     }
     
     cmd_options_t cmd_options;
-    cmd_options.targetBuffer = (uint8_t*)targetBuffer;
+    cmd_options.targetBuffer = (uint8_t*)buf;
     cmd_options.options = options;
     
     /* Get argument to command, if any. */
@@ -373,42 +387,66 @@ cmd_quit (cmd_options_t cmd_options)
 static int
 cmd_new (cmd_options_t cmd_options)
 {
-    cmd_options.options->newCmdsActive = 1;
-    process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    iOptions.newCmdsActive = 1;
+    process_target(iTargetBuffer, iOptions);
     // reset the structure for the commands values
     // else it would display both commands
-    reset_options(cmd_options.options);
+    reset_options(&iOptions);
     return 0;
 }
 
 static int
 cmd_free (cmd_options_t cmd_options)
 {
-    cmd_options.options->freeDataSpace = 1;
-    process_target(cmd_options.targetBuffer, *(cmd_options.options));
+    iOptions.freeDataSpace = 1;
+    process_target(iTargetBuffer, iOptions);
     // reset the structure for the commands values
     // else it would display both commands
-    reset_options(cmd_options.options);
+    reset_options(&iOptions);
     return 0;
 }
 
 static int
 cmd_excel (cmd_options_t cmd_options)
 {
-    cmd_options.options->excelActive = ~cmd_options.options->excelActive;
+    iOptions.excelActive = ~iOptions.excelActive;
     return 0;
 }
 
 static int
 cmd_all (cmd_options_t cmd_options)
 {
-    cmd_options.options->allSections = ~cmd_options.options->allSections;
+    iOptions.allSections = ~iOptions.allSections;
     return 0;
 }
 
 static int
 cmd_ios (cmd_options_t cmd_options)
 {
-    cmd_options.options->iosActive = ~cmd_options.options->iosActive;
+    iOptions.iosActive = ~iOptions.iosActive;
+    return 0;
+}
+
+static int
+cmd_target(cmd_options_t cmd_options)
+{   
+    // test if it's empty
+    if (*(cmd_options.arg) == 0)
+    {
+        printf("Error: you need to supply an argument to this command!\n");
+    }
+    else
+    {
+        if (iTargetBuffer == NULL)
+        {
+           init_target(cmd_options.arg, &iTargetBuffer, &iOptions); 
+        }
+        else
+        {
+            // free old buffer
+            free(iTargetBuffer);
+            init_target(cmd_options.arg, &iTargetBuffer, &iOptions);
+        }
+    }
     return 0;
 }

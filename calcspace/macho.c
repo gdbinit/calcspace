@@ -18,16 +18,16 @@
  * aux function to get the mach header
  */
 uint32_t
-get_header(const uint8_t *targetBuffer, struct mach_header_64 *header)
+get_header(const uint8_t *buf, struct mach_header_64 *header)
 {
-    uint32_t magic = *(uint32_t*)(targetBuffer);    
+    uint32_t magic = *(uint32_t*)(buf);    
     uint32_t headerSize = 0;
     if (magic == MH_MAGIC)
     {
 #if DEBUG
         printf("[DEBUG] Processing 32bits target...\n");
 #endif
-        memcpy(header, targetBuffer, sizeof(struct mach_header));
+        memcpy(header, buf, sizeof(struct mach_header));
         headerSize = sizeof(struct mach_header);
     }
     else if (magic == MH_MAGIC_64)
@@ -35,7 +35,7 @@ get_header(const uint8_t *targetBuffer, struct mach_header_64 *header)
 #if DEBUG
         printf("[DEBUG] Processing 64bits target...\n");
 #endif
-        memcpy(header, targetBuffer, sizeof(struct mach_header_64));
+        memcpy(header, buf, sizeof(struct mach_header_64));
         headerSize = sizeof(struct mach_header_64);
     }
     return headerSize;

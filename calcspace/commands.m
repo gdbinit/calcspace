@@ -18,7 +18,7 @@
  * function that will process the target and act according user options
  */
 void 
-process_target(const uint8_t *targetBuffer, options_t options)
+process_target(const uint8_t *buf, options_t options)
 {
     // target is a fat binary so we iterate thru all binaries inside
     if (options.isFat)
@@ -26,18 +26,18 @@ process_target(const uint8_t *targetBuffer, options_t options)
 #if DEBUG
         printf("[DEBUG] Target is fat binary!\n");
 #endif
-        struct fat_header *fatheader_ptr = (struct fat_header *)targetBuffer;
+        struct fat_header *fatheader_ptr = (struct fat_header *)buf;
         uint32_t nrFatArch = ntohl(fatheader_ptr->nfat_arch);
         // pointer to the first fat_arch structure
-        struct fat_arch *fatArch = (struct fat_arch*)(targetBuffer + sizeof(struct fat_header));
-        uint8_t *address = (uint8_t *)targetBuffer;
+        struct fat_arch *fatArch = (struct fat_arch*)(buf + sizeof(struct fat_header));
+        uint8_t *address = (uint8_t *)buf;
         for (uint32_t i = 0; i < nrFatArch ; i++)
         {
 #if DEBUG
             printf("[DEBUG] Processing fat binary nr %d of %d (cpu 0x%x)\n", i, nrFatArch, ntohl(fatArch->cputype));
 #endif
             // position the buffer into the address and call the function
-            address = (uint8_t *)targetBuffer + ntohl(fatArch->offset);
+            address = (uint8_t *)buf + ntohl(fatArch->offset);
             if (ntohl(fatArch->cputype) == CPU_TYPE_POWERPC || ntohl(fatArch->cputype) == CPU_TYPE_POWERPC64)
             {
                 // not supported for now or never
@@ -56,9 +56,9 @@ process_target(const uint8_t *targetBuffer, options_t options)
     else
     {
         if (options.newCmdsActive)
-            process_injectionspace(targetBuffer, options);
+            process_injectionspace(buf, options);
         if (options.freeDataSpace)
-            process_textspace(targetBuffer, options);
+            process_textspace(buf, options);
     }    
 }
 
@@ -66,7 +66,7 @@ process_target(const uint8_t *targetBuffer, options_t options)
  * function to process __TEXT related space calculations
  */
 void 
-process_textspace(const uint8_t *targetBuffer, options_t options)
+process_textspace(const uint8_t *buf, options_t options)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -76,9 +76,9 @@ process_textspace(const uint8_t *targetBuffer, options_t options)
     // 0 = 32bits, 1 = 64bits
     uint8_t arch = 0;
     
-    headerSize = get_header(targetBuffer, &header);
+    headerSize = get_header(buf, &header);
     
-    address = (uint8_t*)targetBuffer + headerSize;
+    address = (uint8_t*)buf + headerSize;
     struct load_command *loadCmd;
     
     for (uint32_t i = 0; i < header.ncmds ; i++)
@@ -198,7 +198,7 @@ process_textspace(const uint8_t *targetBuffer, options_t options)
  * calculate the free mach-o header space to inject new commands
  */
 void 
-process_injectionspace(const uint8_t *targetBuffer, options_t options)
+process_injectionspace(const uint8_t *buf, options_t options)
 {
     struct mach_header_64 header;
     uint32_t headerSize = 0;
@@ -206,9 +206,9 @@ process_injectionspace(const uint8_t *targetBuffer, options_t options)
     // 0 = 32bits, 1 = 64bits
     uint8_t arch = 0;
     
-    headerSize = get_header(targetBuffer, &header);
+    headerSize = get_header(buf, &header);
     
-    address = (uint8_t*)targetBuffer + headerSize;
+    address = (uint8_t*)buf + headerSize;
     struct load_command *loadCmd;
     uint64_t firstSectionAddress = 0;
     uint64_t textFirstSectionAddress = 0;
@@ -274,9 +274,9 @@ process_injectionspace(const uint8_t *targetBuffer, options_t options)
     
     // use the lowest one - for signed binaries crypt usually comes first!
     if (cryptFirstSectionAddress == 0 || cryptFirstSectionAddress > textFirstSectionAddress)
-        firstSectionAddress = (uint32_t)targetBuffer + textFirstSectionAddress;
+        firstSectionAddress = (uint32_t)buf + textFirstSectionAddress;
     else
-        firstSectionAddress = (uint32_t)targetBuffer + cryptFirstSectionAddress;
+        firstSectionAddress = (uint32_t)buf + cryptFirstSectionAddress;
     
     // address is positioned after all load commands
     uint32_t headerEndAddress = (uint32_t)address;

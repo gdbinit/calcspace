@@ -113,14 +113,14 @@ int main (int argc, char * argv[])
 		}
 	}
 
-    if (argc == 1)
-    {
-        fprintf(stderr, "************************************\n");
-        fprintf(stderr, "[ERROR] Target application required!\n");
-        fprintf(stderr, "************************************\n");
-        help(myProgramName);
-        exit(1);
-    }
+//    if (argc == 1)
+//    {
+//        fprintf(stderr, "************************************\n");
+//        fprintf(stderr, "[ERROR] Target application required!\n");
+//        fprintf(stderr, "************************************\n");
+//        help(myProgramName);
+//        exit(1);
+//    }
     
     if (!freeDataSpace && allSections)
     {
@@ -157,8 +157,8 @@ int main (int argc, char * argv[])
 //            exit(0);
 //        }
 //    }    
-    uint8_t *targetBuffer;
-    init_target((argv+optind)[0], &targetBuffer, &options);
+//    uint8_t *targetBuffer = NULL;
+//    init_target((argv+optind)[0], &targetBuffer, &options);
     // read target file into a buffer
 //    uint64_t fileSize = 0;
 //    fileSize = read_target(&targetBuffer, target);
@@ -180,17 +180,29 @@ int main (int argc, char * argv[])
 //    }
 //    free(target);
     
-    // no options given so go to interactive mode
-    if (optind <= 1 || argc-optind < 1 )
+    if (argc == 1)
     {
-        start_interactive_mode(targetBuffer, &options);
+#if DEBUG
+        printf("[DEBUG] No target configured\n");
+#endif
+        start_interactive_mode(NULL);
     }
+    // no options given so go to interactive mode
+    else if (optind <= 1 || argc-optind < 1 )
+    {
+#if DEBUG
+        printf("[DEBUG] Target is %s\n", (argv+optind)[0]);
+#endif
+        start_interactive_mode((argv+optind)[0]);
+    }
+    // just process the target with the selected options
     else
     {
+        uint8_t *targetBuffer = NULL;
+        init_target((argv+optind)[0], &targetBuffer, &options);
         process_target(targetBuffer, options);
+        free(targetBuffer);
     }
-end:
-    free(targetBuffer);
     return 0;
 }
 
@@ -303,6 +315,7 @@ read_target(uint8_t **targetBuffer, const char *target)
     }
     
     *targetBuffer = malloc(fileSize * sizeof(uint8_t));
+    
     if (*targetBuffer == NULL)
     {
         fprintf(stderr, "[ERROR] Malloc failed!\n");

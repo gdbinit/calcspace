@@ -24,6 +24,6 @@
 #include <mach-o/fat.h>
 #include "structures.h"
 
-uint32_t get_header(const uint8_t *targetBuffer, struct mach_header_64 *header);
+uint32_t get_header(const uint8_t *buf, struct mach_header_64 *header);
 
 #endif
