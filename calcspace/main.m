@@ -54,6 +54,8 @@ help(const char *exe)
     printf("-i : target is an iOS application\n");
     printf("-e : format output to be imported into Excel\n");
     printf("-n : calculate free space to inject new commands\n");
+    printf("-h : display this help text\n\n");
+    printf("Note: Interactive mode will be used if no commands or no path is configured\n");
 }
 
 int main (int argc, char * argv[])
@@ -164,12 +166,12 @@ remove_newline(const char *line)
 void 
 init_options(options_t *options)
 {
-    options->allSections = 0;
-    options->excelActive = 0;
+    options->allSections   = 0;
+    options->excelActive   = 0;
     options->freeDataSpace = 0;
     options->newCmdsActive = 0;
-    options->iosActive = 0;
-    options->isFat = 0;
+    options->iosActive     = 0;
+    options->isFat         = 0;
 }
 
 /*

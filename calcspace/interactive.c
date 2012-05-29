@@ -265,7 +265,7 @@ execute_line (char *line)
     
     if (!command)
     {
-        fprintf (stderr, "%s: No such command for calcspace.\n", word);
+        fprintf (stderr, "[ERROR] %s: No such command for calcspace.\n", word);
         return (-1);
     }
         
@@ -383,7 +383,7 @@ cmd_new (char *arg)
     // verify if we have any target loaded else it return error
     if (iTargetBuffer == NULL)
     {
-        printf("Error: target not configured!\n");
+        printf("[ERROR] target not configured!\n");
         return 0;
     }
     iOptions.newCmdsActive = 1;
@@ -400,7 +400,7 @@ cmd_free (char *arg)
     // verify if we have any target loaded else it return error
     if (iTargetBuffer == NULL)
     {
-        printf("Error: target not configured!\n");
+        printf("[ERROR] target not configured!\n");
         return 0;
     }
     iOptions.freeDataSpace = 1;
@@ -438,7 +438,7 @@ cmd_target(char *arg)
     // test if it's empty
     if (*arg == 0)
     {
-        printf("Error: you need to supply an argument to this command!\n");
+        printf("[ERROR] you need to supply an argument to this command!\n");
     }
     else
     {
@@ -455,5 +455,6 @@ cmd_target(char *arg)
             init_target(arg, &iTargetBuffer, &iOptions);
         }
     }
+    printf("Loaded %s application...\n", arg);
     return 0;
 }
