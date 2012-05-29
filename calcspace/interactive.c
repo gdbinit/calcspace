@@ -70,6 +70,7 @@ static COMMAND *find_command(char *name);
 extern void init_options(options_t *options);
 extern void reset_options(options_t *options);
 extern uint8_t init_target(char *targetPath, uint8_t **buf, options_t *options);
+extern void header(void);
 
 int done = 0;
 
@@ -93,14 +94,7 @@ start_interactive_mode(const char *targetName)
     setlocale(LC_CTYPE, "");
     stifle_history(7);
     initialize_readline();
-    
-    printf(" _____     _     _____ \n");                
-    printf("|     |___| |___|   __|___ ___ ___ ___ \n");
-    printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
-    printf("|_____|__,|_|___|_____|  _|__,|___|___|\n");
-    printf("                      |_|              \n");
-    printf("Calculate free space in mach-o headers\n");
-    printf("(c) fG!, 2012 - reverser@put.as\n\n");
+    header();
     
     for ( ; done == 0; )
     {

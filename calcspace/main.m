@@ -10,6 +10,23 @@
  *  and between all sections inside __TEXT segment
  *
  *  The objective is to verify if there's enough space for code injection.
+ *
+ *  THIS CODE IS FREE AS IN DO WHATEVER YOU WANT WITH IT.
+ *  THE ONLY REQUIREMENT IS TO MAINTAIN ORIGINAL CREDIT.
+ *  THIS LICENSE APPLIES TO ALL SOURCE FILES INCLUDED IN THIS PROJECT.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *  ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
 #import <Foundation/Foundation.h>
@@ -24,24 +41,32 @@
 #include "commands.h"
 #include "interactive.h"
 
+#define VERSION "1.0"
+
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
 static void remove_newline(const char *line);
 void init_options(options_t *options);
 void reset_options(options_t *options);
 uint8_t init_target(char *targetPath, uint8_t **buf, options_t *options);
+void header(void);
 
-static void 
-help(const char *exe)
+void
+header(void)
 {
     printf(" _____     _     _____ \n");                
     printf("|     |___| |___|   __|___ ___ ___ ___ \n");
     printf("|   --| .'| |  _|__   | . | .'|  _| -_|\n");
     printf("|_____|__,|_|___|_____|  _|__,|___|___|\n");
-    printf("                      |_|              \n");
+    printf("                      |_|         v%s  \n", VERSION);
     printf("Calculate free space in mach-o headers\n");
-    printf("(c) fG!, 2012 - reverser@put.as\n");
+    printf("(c) fG!, 2012 - reverser@put.as\n");   
+}
 
+static void 
+help(const char *exe)
+{
+    header();
     printf("\n");
     printf("Usage Syntax:\n");
     printf("%s <path> [<commands>]\n", exe);

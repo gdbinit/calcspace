@@ -9,7 +9,7 @@
  *  macho.m
  *  
  *  Mach-O header auxiliary commands
- *  
+ *
  */
 
 #include <stdio.h>
