@@ -61,6 +61,7 @@ extern void init_target(char *targetPath, uint8_t **targetBuffer, options_t *opt
 
 int done = 0;
 
+// global vars to hold our buffers and options
 uint8_t *iTargetBuffer = NULL;
 options_t iOptions;
 
@@ -303,6 +304,13 @@ cmd_help (char *arg)
     register int i;
     int printed = 0;
     
+    printf("                 __ \n");
+    printf(" _____     _    |  |\n");
+    printf("|  |  |___| |___|  |\n");
+    printf("|     | -_| | . |__|\n");
+    printf("|__|__|___|_|  _|__|\n");
+    printf("            |_|     \n");
+
     // print the help for a specific command
     if (*arg)
     {

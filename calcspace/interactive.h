@@ -29,6 +29,6 @@
 #include "commands.h"
 #include "macho.h"
 
-void start_interactive_mode(const char *targetName);//start_interactive_mode(const uint8_t *targetBuffer, options_t *options);
+void start_interactive_mode(const char *targetName);
 
 #endif
