@@ -22,6 +22,8 @@
 #include "macho.h"
 #include "commands.h"
 
+static char * get_cpu(cpu_type_t cputype, cpu_subtype_t cpusubtype);
+
 /*
  * function that will process the target and act according user options
  */
@@ -81,9 +83,7 @@ process_textspace(const uint8_t *buf, options_t options)
     uint8_t *address = NULL;
     uint64_t lastTextSection = 0;
     uint64_t dataVMAddress = 0;
-    // 0 = 32bits, 1 = 64bits
-    uint8_t arch = 0;
-    
+
     headerSize = get_header(buf, &header);
     
     address = (uint8_t*)buf + headerSize;
@@ -179,7 +179,6 @@ process_textspace(const uint8_t *buf, options_t options)
                 printf("[DEBUG] Section name %.16s\n", sectionCmd->sectname);
                 printf("[DEBUG] Last text section 0x%llx\n", lastTextSection);
 #endif
-                arch = 1;
             }
             else if (strncmp(segCmd->segname, "__DATA", 16) == 0)
             {
@@ -195,11 +194,11 @@ process_textspace(const uint8_t *buf, options_t options)
         // move to next command
         address += loadCmd->cmdsize;
     }
-    
+    char *cpu = get_cpu(header.cputype, header.cpusubtype);
     if (options.excelActive)
-        printf("%lld,%s\n", (dataVMAddress - lastTextSection), arch ? "64bits" : "32bits");
+        printf("%lld,%s\n", (dataVMAddress - lastTextSection), cpu);
     else
-        printf("Available slack space at the end of __TEXT is %lld bytes (%s)\n", dataVMAddress - lastTextSection, arch ? "64bits" : "32bits");
+        printf("Available slack space at the end of __TEXT is %lld bytes (%s)\n", dataVMAddress - lastTextSection, cpu);
 }
 
 /*
@@ -211,8 +210,6 @@ process_injectionspace(const uint8_t *buf, options_t options)
     struct mach_header_64 header;
     uint32_t headerSize = 0;
     uint8_t *address = NULL;
-    // 0 = 32bits, 1 = 64bits
-    uint8_t arch = 0;
     
     headerSize = get_header(buf, &header);
     
@@ -268,7 +265,6 @@ process_injectionspace(const uint8_t *buf, options_t options)
                     }
                     sectionAddress += sizeof(struct section_64);
                 }
-                arch = 1;
             }
         }
         else if (loadCmd->cmd == LC_ENCRYPTION_INFO)
@@ -288,8 +284,33 @@ process_injectionspace(const uint8_t *buf, options_t options)
     
     // address is positioned after all load commands
     uint32_t headerEndAddress = (uint32_t)address;
+    char *cpu = get_cpu(header.cputype, header.cpusubtype);
     if (options.excelActive)
-        printf("%lld,%s\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
+        printf("%lld,%s\n", firstSectionAddress-headerEndAddress, cpu);
     else
-        printf("Free injection space: %lld bytes (%s)\n", firstSectionAddress-headerEndAddress, arch ? "64bits" : "32bits");
+        printf("Free injection space: %lld bytes (%s)\n", firstSectionAddress-headerEndAddress, cpu);
+}
+
+/*
+ * aux function to return a string with the cpu type
+ */
+static char *
+get_cpu(cpu_type_t cputype, cpu_subtype_t cpusubtype)
+{
+    switch (cputype) 
+    {
+        case CPU_TYPE_I386:
+            return "32bits";
+        case CPU_TYPE_X86_64:
+            return "64bits";
+        case CPU_TYPE_ARM:
+        {
+            if (cpusubtype == CPU_SUBTYPE_ARM_V6)
+                return "armv6";
+            else if (cpusubtype == CPU_SUBTYPE_ARM_V7)
+                return "armv7";
+        }
+        default:
+            return "";
+    }
 }
