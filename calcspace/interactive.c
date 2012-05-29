@@ -16,30 +16,24 @@
 
 #include "interactive.h"
 
-typedef struct {
-    uint8_t *targetBuffer;
-    options_t *options;
-    char *arg;
-} cmd_options_t;
-
 enum cmd_type { CMD, CONFIG };
 
-typedef int rl_icpfunc_t (cmd_options_t);
+typedef int rl_icpfunc_t (char *);
 typedef struct {
     char *name;                   /* User printable name of the function. */
     rl_icpfunc_t *func;           /* Function to call to do the job. */
     char *doc;                    /* Documentation for this function.  */
-    enum cmd_type type;                 /* type of command: 0-cmd, 1-configuration */
+    enum cmd_type type;           /* type of command: 0-cmd, 1-configuration */
 } COMMAND;
 
-static int cmd_quit(cmd_options_t cmd_options);
-static int cmd_new(cmd_options_t cmd_options);
-static int cmd_free(cmd_options_t cmd_options);
-static int cmd_excel(cmd_options_t cmd_options);
-static int cmd_all(cmd_options_t cmd_options);
-static int cmd_ios(cmd_options_t cmd_options);
-static int cmd_help(cmd_options_t cmd_options);
-static int cmd_target(cmd_options_t cmd_options);
+static int cmd_quit(char *arg);
+static int cmd_new(char *arg);
+static int cmd_free(char *arg);
+static int cmd_excel(char *arg);
+static int cmd_all(char *arg);
+static int cmd_ios(char *arg);
+static int cmd_help(char *arg);
+static int cmd_target(char *arg);
 
 COMMAND commands[] = {
     { "quit",  cmd_quit,  "Exit this utility.", CMD },
@@ -49,17 +43,16 @@ COMMAND commands[] = {
     { "excel", cmd_excel, "Set output to excel mode.", CONFIG },
     { "all",   cmd_all,   "Set free command to calculate space for all sections.", CONFIG },
     { "ios",   cmd_ios,   "Set target as an iOS application.", CONFIG },
+    { "target",cmd_target,"Read a new target application", CMD },
     { "help",  cmd_help,  "Display this text.", CMD },
     { "?",     cmd_help,  "Synonym for `help'.", CMD },
-    { "target",cmd_target,"Read a new target application", CMD },
     { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL, CMD }
 };
-
 
 static char * stripwhite (char *string);
 static void initialize_readline(void);
 static char * dupstr(char* s);
-static int execute_line(char *line,const uint8_t *targetBuffer, options_t *options);
+static int execute_line(char *line);
 static COMMAND *find_command(char *name);
 
 extern void init_options(options_t *options);
@@ -73,7 +66,6 @@ options_t iOptions;
 
 void 
 start_interactive_mode(const char *targetName)
-//start_interactive_mode(const uint8_t *targetBuffer, options_t *options)
 {
     // if there is already a target, initialize our stuff
     if (targetName != NULL)
@@ -122,7 +114,7 @@ start_interactive_mode(const char *targetName)
             else 
             {
                 add_history(expansion);
-                execute_line(expansion, iTargetBuffer, &iOptions);
+                execute_line(expansion);
             }
             free(expansion);
         }
@@ -251,7 +243,7 @@ stripwhite (char *string)
  * Execute a command line. 
  */
 static int
-execute_line (char *line,const uint8_t *buf, options_t *options)
+execute_line (char *line)
 {
     register int i;
     COMMAND *command;
@@ -276,20 +268,14 @@ execute_line (char *line,const uint8_t *buf, options_t *options)
         fprintf (stderr, "%s: No such command for calcspace.\n", word);
         return (-1);
     }
-    
-    cmd_options_t cmd_options;
-    cmd_options.targetBuffer = (uint8_t*)buf;
-    cmd_options.options = options;
-    
+        
     /* Get argument to command, if any. */
     while (isspace (line[i]))
         i++;
     
     word = line + i;
-
-    cmd_options.arg = word;
     
-    return ((*(command->func)) (cmd_options));
+    return ((*(command->func)) (word));
 }
 
 /*
@@ -312,17 +298,17 @@ find_command (char *name)
 /* Print out help for ARG, or for all of the commands if ARG is
  not present. */
 static int
-cmd_help (cmd_options_t cmd_options)
+cmd_help (char *arg)
 {
     register int i;
     int printed = 0;
     
     // print the help for a specific command
-    if (*(cmd_options.arg))
+    if (*arg)
     {
         for (i = 0; commands[i].name; i++)
         {
-            if (strcmp (cmd_options.arg, commands[i].name) == 0)
+            if (strcmp (arg, commands[i].name) == 0)
             {
                 printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
                 printed++;
@@ -336,7 +322,7 @@ cmd_help (cmd_options_t cmd_options)
         printf("Available commands:\n");
         for (i = 0; commands[i].name; i++)
         {
-            if ((!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0)) && commands[i].type == CMD)
+            if ((!*arg || (strcmp (arg, commands[i].name) == 0)) && commands[i].type == CMD)
             {
                 printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
                 printed++;
@@ -345,7 +331,7 @@ cmd_help (cmd_options_t cmd_options)
         printf("Configuration options:\n");
         for (i = 0; commands[i].name; i++)
         {
-            if ((!*(cmd_options.arg) || (strcmp (cmd_options.arg, commands[i].name) == 0)) && commands[i].type == CONFIG)
+            if ((!*arg || (strcmp (arg, commands[i].name) == 0)) && commands[i].type == CONFIG)
             {
                 printf ("%s\t\t%s\n", commands[i].name, commands[i].doc);
                 printed++;
@@ -356,7 +342,7 @@ cmd_help (cmd_options_t cmd_options)
     
     if (!printed)
     {
-        printf ("No commands match `%s'. Available commands are:\n", cmd_options.arg);
+        printf ("No commands match `%s'. Available commands are:\n", arg);
         
         for (i = 0; commands[i].name; i++)
         {
@@ -378,15 +364,21 @@ cmd_help (cmd_options_t cmd_options)
 }
 
 static int
-cmd_quit (cmd_options_t cmd_options)
+cmd_quit (char *arg)
 {
     printf("Bye bye...!\n");
     exit(0);
 }
 
 static int
-cmd_new (cmd_options_t cmd_options)
+cmd_new (char *arg)
 {
+    // verify if we have any target loaded else it return error
+    if (iTargetBuffer == NULL)
+    {
+        printf("Error: target not configured!\n");
+        return 0;
+    }
     iOptions.newCmdsActive = 1;
     process_target(iTargetBuffer, iOptions);
     // reset the structure for the commands values
@@ -396,8 +388,14 @@ cmd_new (cmd_options_t cmd_options)
 }
 
 static int
-cmd_free (cmd_options_t cmd_options)
+cmd_free (char *arg)
 {
+    // verify if we have any target loaded else it return error
+    if (iTargetBuffer == NULL)
+    {
+        printf("Error: target not configured!\n");
+        return 0;
+    }
     iOptions.freeDataSpace = 1;
     process_target(iTargetBuffer, iOptions);
     // reset the structure for the commands values
@@ -407,31 +405,31 @@ cmd_free (cmd_options_t cmd_options)
 }
 
 static int
-cmd_excel (cmd_options_t cmd_options)
+cmd_excel (char *arg)
 {
     iOptions.excelActive = ~iOptions.excelActive;
     return 0;
 }
 
 static int
-cmd_all (cmd_options_t cmd_options)
+cmd_all (char *arg)
 {
     iOptions.allSections = ~iOptions.allSections;
     return 0;
 }
 
 static int
-cmd_ios (cmd_options_t cmd_options)
+cmd_ios (char *arg)
 {
     iOptions.iosActive = ~iOptions.iosActive;
     return 0;
 }
 
 static int
-cmd_target(cmd_options_t cmd_options)
+cmd_target(char *arg)
 {   
     // test if it's empty
-    if (*(cmd_options.arg) == 0)
+    if (*arg == 0)
     {
         printf("Error: you need to supply an argument to this command!\n");
     }
@@ -439,13 +437,15 @@ cmd_target(cmd_options_t cmd_options)
     {
         if (iTargetBuffer == NULL)
         {
-           init_target(cmd_options.arg, &iTargetBuffer, &iOptions); 
+            reset_options(&iOptions);
+            init_target(arg, &iTargetBuffer, &iOptions); 
         }
         else
         {
             // free old buffer
             free(iTargetBuffer);
-            init_target(cmd_options.arg, &iTargetBuffer, &iOptions);
+            reset_options(&iOptions);
+            init_target(arg, &iTargetBuffer, &iOptions);
         }
     }
     return 0;

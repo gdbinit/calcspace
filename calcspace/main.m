@@ -180,6 +180,7 @@ int main (int argc, char * argv[])
 //    }
 //    free(target);
     
+    // FIXME: we will land here if there are switches but no target
     if (argc == 1)
     {
 #if DEBUG
