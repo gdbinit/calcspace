@@ -23,12 +23,7 @@
 #include <editline/readline.h>
 #include "structures.h"
 #include "commands.h"
-//#include "macho.h"
 #include "interactive.h"
-
-//uint8_t iosActive   = 0;
-//uint8_t excelActive = 0;
-//uint8_t newCmdsActive = 0;
 
 static uint64_t read_target(uint8_t **targetBuffer, const char *target);
 static void help(const char *exe);
@@ -129,57 +124,7 @@ int main (int argc, char * argv[])
         fprintf(stderr, "*****************************\n");
         exit(1);
     }
-    
-//    char *target = NULL;
-//    @autoreleasepool {
-//
-//        NSString *path = [NSString stringWithCString:(argv+optind)[0] encoding:NSUTF8StringEncoding];
-//        NSBundle *bundle = [NSBundle bundleWithPath:path];
-//        NSDictionary *plistData = [bundle infoDictionary];
-//
-//        NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
-//        if (targetExe != nil)
-//        {
-//            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
-//            NSString *tempString1;
-//            if (options.iosActive)
-//                tempString1 = path;
-//            else
-//                tempString1 = [path stringByAppendingPathComponent:@"Contents/MacOS"];
-//
-//            NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
-//            target = malloc([tempTarget length] * sizeof(char)+1);
-//            [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
-//        }
-//        else
-//        {
-//            fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
-//            exit(0);
-//        }
-//    }    
-//    uint8_t *targetBuffer = NULL;
-//    init_target((argv+optind)[0], &targetBuffer, &options);
-    // read target file into a buffer
-//    uint64_t fileSize = 0;
-//    fileSize = read_target(&targetBuffer, target);
-    
-    // verify if it's a valid mach-o target
-//    uint32_t magic = *(uint32_t*)(targetBuffer);
-//    if (magic == FAT_CIGAM)
-//    {
-//        options.isFat = 1;
-//    }
-//    else if (magic == MH_MAGIC || magic == MH_MAGIC_64)
-//    {
-//        options.isFat = 0;
-//    }
-//    else
-//    {
-//		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
-//        exit(1);
-//    }
-//    free(target);
-    
+        
     // FIXME: we will land here if there are switches but no target
     if (argc == 1)
     {
@@ -227,6 +172,10 @@ init_options(options_t *options)
     options->isFat = 0;
 }
 
+/*
+ * aux function to clean the commands fields
+ * these fields are used to find which command to execute
+ */
 void 
 reset_options(options_t *options)
 {
@@ -234,6 +183,12 @@ reset_options(options_t *options)
     options->newCmdsActive = 0;
 }
 
+/*
+ * function that will read the target binary into our buffer
+ * we process the Info.plist to find the binary name
+ * then we read the binary into our buffer
+ * and also verify if it's a valid and fat or not
+ */
 void 
 init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
 {
@@ -264,7 +219,7 @@ init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
             exit(0);
         }
     }    
-//    uint8_t *targetBuffer;
+
     // read target file into a buffer
     uint64_t fileSize = 0;
     fileSize = read_target(targetBuffer, target);
