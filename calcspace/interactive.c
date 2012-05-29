@@ -59,7 +59,7 @@ static COMMAND *find_command(char *name);
 
 extern void init_options(options_t *options);
 extern void reset_options(options_t *options);
-extern void init_target(char *targetPath, uint8_t **targetBuffer, options_t *options);
+extern uint8_t init_target(char *targetPath, uint8_t **buf, options_t *options);
 
 int done = 0;
 
@@ -75,8 +75,8 @@ start_interactive_mode(const char *targetName)
     if (targetName != NULL)
     {
         init_options(&iOptions);
-        init_target((char*)targetName, &iTargetBuffer, &iOptions);
-        baseName = basename((char*)targetName);
+        if(!init_target((char*)targetName, &iTargetBuffer, &iOptions))
+            baseName = basename((char*)targetName);
     }
 
     char *line, *s;
@@ -447,6 +447,7 @@ cmd_ios (char *arg)
 static int
 cmd_target(char *arg)
 {   
+    uint8_t ret;
     // test if it's empty
     if (*arg == 0)
     {
@@ -455,22 +456,16 @@ cmd_target(char *arg)
     }
     else
     {
-        if (iTargetBuffer == NULL)
-        {
             reset_options(&iOptions);
-            init_target(arg, &iTargetBuffer, &iOptions); 
-        }
-        else
-        {
-            // free old buffer
-            free(iTargetBuffer);
-            reset_options(&iOptions);
-            init_target(arg, &iTargetBuffer, &iOptions);
-        }
+            ret = init_target(arg, &iTargetBuffer, &iOptions); 
     }
-    printf("Loaded %s application...\n", arg);
-    // set the basename to the new target
-    baseName = basename(arg);
+    // if init_target() was successful we can change the prompt name
+    if (!ret)
+    {
+        printf("Loaded %s application...\n", arg);
+        // set the basename to the new target
+        baseName = basename(arg);
+    }
     return 0;
 }
 

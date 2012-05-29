@@ -30,7 +30,7 @@ static void help(const char *exe);
 static void remove_newline(const char *line);
 void init_options(options_t *options);
 void reset_options(options_t *options);
-void init_target(char *targetPath, uint8_t **targetBuffer, options_t *options);
+uint8_t init_target(char *targetPath, uint8_t **buf, options_t *options);
 
 static void 
 help(const char *exe)
@@ -147,7 +147,8 @@ int main (int argc, char * argv[])
     else
     {
         uint8_t *targetBuffer = NULL;
-        init_target((argv+optind)[0], &targetBuffer, &options);
+        if (init_target((argv+optind)[0], &targetBuffer, &options))
+            return 1;
         process_target(targetBuffer, options);
         free(targetBuffer);
     }
@@ -191,8 +192,8 @@ reset_options(options_t *options)
  * then we read the binary into our buffer
  * and also verify if it's a valid and fat or not
  */
-void 
-init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
+uint8_t 
+init_target(char *targetPath, uint8_t **buf, options_t *options)
 {
     char *target = NULL;
     @autoreleasepool {
@@ -218,16 +219,17 @@ init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
         else
         {
             fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", [path UTF8String]);
-            exit(0);
+            return 1;
         }
-    }    
-
+    }
+    // free the buffer to avoid memory leaks in interactive mode
+    free(*buf);
     // read target file into a buffer
     uint64_t fileSize = 0;
-    fileSize = read_target(targetBuffer, target);
+    fileSize = read_target(buf, target);
     
     // verify if it's a valid mach-o target
-    uint32_t magic = *(uint32_t*)(*targetBuffer);
+    uint32_t magic = *(uint32_t*)(*buf);
     if (magic == FAT_CIGAM)
     {
         options->isFat = 1;
@@ -239,9 +241,10 @@ init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
     else
     {
 		fprintf(stderr, "[ERROR] Target %s is not a mach-o binary!\n", target);
-        exit(1);
+        return 1;
     }
-    free(target); 
+    free(target);
+    return 0;
 }
 
 /*
