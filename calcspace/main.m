@@ -108,14 +108,15 @@ int main (int argc, char * argv[])
 		}
 	}
 
-//    if (argc == 1)
-//    {
-//        fprintf(stderr, "************************************\n");
-//        fprintf(stderr, "[ERROR] Target application required!\n");
-//        fprintf(stderr, "************************************\n");
-//        help(myProgramName);
-//        exit(1);
-//    }
+    // switches are set but there's no target configured
+    if (optind > 1 && (argv+optind)[0] == NULL)
+    {
+        fprintf(stderr, "************************************\n");
+        fprintf(stderr, "[ERROR] Target application required!\n");
+        fprintf(stderr, "************************************\n");
+        help(myProgramName);
+        exit(1);
+    }
     
     if (!freeDataSpace && allSections)
     {
@@ -124,8 +125,7 @@ int main (int argc, char * argv[])
         fprintf(stderr, "*****************************\n");
         exit(1);
     }
-        
-    // FIXME: we will land here if there are switches but no target
+    
     if (argc == 1)
     {
 #if DEBUG
@@ -202,7 +202,7 @@ init_target(char *targetPath, uint8_t **targetBuffer, options_t *options)
         NSString *targetExe = (NSString*)[plistData objectForKey:@"CFBundleExecutable"];
         if (targetExe != nil)
         {
-            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
+//            printf("[INFO] Main executable is %s at %s\n", [targetExe UTF8String], [path UTF8String]);
             NSString *tempString1;
             if (options->iosActive)
                 tempString1 = path;

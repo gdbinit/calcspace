@@ -71,7 +71,6 @@ start_interactive_mode(const char *targetName)
     // if there is already a target, initialize our stuff
     if (targetName != NULL)
     {
-        printf("we have a target configured\n");
         init_options(&iOptions);
         init_target((char*)targetName, &iTargetBuffer, &iOptions);
     }
