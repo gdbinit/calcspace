@@ -20,7 +20,6 @@
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
 #include <getopt.h>
-#include <editline/readline.h>
 #include "structures.h"
 #include "commands.h"
 #include "interactive.h"
@@ -223,6 +222,7 @@ init_target(char *targetPath, uint8_t **buf, options_t *options)
         }
     }
     // free the buffer to avoid memory leaks in interactive mode
+    // if the new target fails to load we still hold the old one in memory
     free(*buf);
     // read target file into a buffer
     uint64_t fileSize = 0;

@@ -12,7 +12,15 @@
  *  
  */
 
-#import "commands.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <strings.h>
+#include <mach-o/loader.h>
+#include <mach-o/fat.h>
+#include "structures.h"
+#include "macho.h"
+#include "commands.h"
 
 /*
  * function that will process the target and act according user options

@@ -14,21 +14,8 @@
  *  
  */
 
-#ifndef calcspace_interactive_c
-#define calcspace_interactive_c
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <strings.h>
-#include <editline/readline.h>
-#include <locale.h>
-#include <ctype.h>
-#include <libgen.h>
-
-#include "structures.h"
-#include "commands.h"
-#include "macho.h"
+#ifndef _CALCSPACE_INTERACTIVE_H_
+#define _CALCSPACE_INTERACTIVE_H_
 
 void start_interactive_mode(const char *targetName);
 

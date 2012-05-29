@@ -13,7 +13,17 @@
  *  Most of the functions from editline/readline fileman.c example
  *  
  */
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <strings.h>
+#include <editline/readline.h>
+#include <locale.h>
+#include <ctype.h>
+#include <libgen.h>
+#include "structures.h"
+#include "commands.h"
+#include "macho.h"
 #include "interactive.h"
 
 enum cmd_type { CMD, CONFIG };
@@ -94,6 +104,7 @@ start_interactive_mode(const char *targetName)
     
     for ( ; done == 0; )
     {
+        // put the corrent app name into the prompt
         char *prompt = "calcspace> ";
         char *newPrompt = malloc(strlen(baseName)+strlen(prompt)+4);
         
@@ -101,7 +112,6 @@ start_interactive_mode(const char *targetName)
         sprintf(newPrompt, "[%s] ", baseName);
         strcat(newPrompt, prompt);
         line = readline(newPrompt);
-//        line = readline ("calcspace> ");
         
         if (!line)
             break;
@@ -460,6 +470,7 @@ cmd_target(char *arg)
             ret = init_target(arg, &iTargetBuffer, &iOptions); 
     }
     // if init_target() was successful we can change the prompt name
+    // if it fails then we still have the hold target allocated
     if (!ret)
     {
         printf("Loaded %s application...\n", arg);

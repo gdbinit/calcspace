@@ -12,17 +12,11 @@
  *  
  */
 
+#ifndef _CALCSPACE_MACHO_H_
+#define _CALCSPACE_MACHO_H_
 
-#ifndef calcspace_macho_c
-#define calcspace_macho_c
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <strings.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
-#include "structures.h"
 
 uint32_t get_header(const uint8_t *buf, struct mach_header_64 *header);
 
