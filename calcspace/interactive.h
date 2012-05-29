@@ -24,6 +24,7 @@
 #include <editline/readline.h>
 #include <locale.h>
 #include <ctype.h>
+#include <libgen.h>
 
 #include "structures.h"
 #include "commands.h"

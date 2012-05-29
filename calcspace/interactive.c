@@ -34,18 +34,20 @@ static int cmd_all(char *arg);
 static int cmd_ios(char *arg);
 static int cmd_help(char *arg);
 static int cmd_target(char *arg);
+static int cmd_options(char *arg);
 
 COMMAND commands[] = {
-    { "quit",  cmd_quit,  "Exit this utility.", CMD },
-    { "exit",  cmd_quit,  "Exit this utility.", CMD },
     { "new",   cmd_new,   "Calculate free space for new commands.", CMD },
     { "free",  cmd_free,  "Calculate free __TEXT space.",CMD },
     { "excel", cmd_excel, "Set output to excel mode.", CONFIG },
     { "all",   cmd_all,   "Set free command to calculate space for all sections.", CONFIG },
     { "ios",   cmd_ios,   "Set target as an iOS application.", CONFIG },
     { "target",cmd_target,"Read a new target application", CMD },
+    { "options",cmd_options, "Show current configured options", CMD },
     { "help",  cmd_help,  "Display this text.", CMD },
     { "?",     cmd_help,  "Synonym for `help'.", CMD },
+    { "quit",  cmd_quit,  "Exit this utility.", CMD },
+    { "exit",  cmd_quit,  "Synonym for `quit'.", CMD },
     { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL, CMD }
 };
 
@@ -64,6 +66,7 @@ int done = 0;
 // global vars to hold our buffers and options
 uint8_t *iTargetBuffer = NULL;
 options_t iOptions;
+char *baseName = "None";
 
 void 
 start_interactive_mode(const char *targetName)
@@ -73,7 +76,9 @@ start_interactive_mode(const char *targetName)
     {
         init_options(&iOptions);
         init_target((char*)targetName, &iTargetBuffer, &iOptions);
+        baseName = basename((char*)targetName);
     }
+
     char *line, *s;
     setlocale(LC_CTYPE, "");
     stifle_history(7);
@@ -89,8 +94,14 @@ start_interactive_mode(const char *targetName)
     
     for ( ; done == 0; )
     {
+        char *prompt = "calcspace> ";
+        char *newPrompt = malloc(strlen(baseName)+strlen(prompt)+4);
+        
         // new line is chomp'ed
-        line = readline ("calcspace> ");
+        sprintf(newPrompt, "[%s] ", baseName);
+        strcat(newPrompt, prompt);
+        line = readline(newPrompt);
+//        line = readline ("calcspace> ");
         
         if (!line)
             break;
@@ -119,6 +130,7 @@ start_interactive_mode(const char *targetName)
             free(expansion);
         }
         free(line);
+        free(newPrompt);
     }        
 }
 
@@ -439,6 +451,7 @@ cmd_target(char *arg)
     if (*arg == 0)
     {
         printf("[ERROR] you need to supply an argument to this command!\n");
+        return 0;
     }
     else
     {
@@ -456,5 +469,18 @@ cmd_target(char *arg)
         }
     }
     printf("Loaded %s application...\n", arg);
+    // set the basename to the new target
+    baseName = basename(arg);
+    return 0;
+}
+
+static int
+cmd_options(char *arg)
+{
+    printf("Current configured options:\n");
+    printf("---------------------------\n");
+    printf("Target is iOS: %s\n", iOptions.iosActive ? "Yes" : "No");
+    printf("Excel ready output: %s\n", iOptions.excelActive ? "Yes" : "No");
+    printf("Free space in all __TEXT sections: %s\n", iOptions.allSections ? "Yes" : "No");
     return 0;
 }
