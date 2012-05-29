@@ -214,6 +214,11 @@ init_target(char *targetPath, uint8_t **buf, options_t *options)
             NSString *tempTarget = [tempString1 stringByAppendingPathComponent:targetExe];
             target = malloc([tempTarget length] * sizeof(char)+1);
             [tempTarget getCString:target maxLength:[tempTarget length]+1 encoding:NSUTF8StringEncoding];
+            if (![[NSFileManager new] fileExistsAtPath:tempTarget])
+            {
+                fprintf(stderr, "[ERROR] Can't find the target exe at %s\n", target);
+                return 1;
+            }
         }
         else
         {
