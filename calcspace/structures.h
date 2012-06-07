@@ -24,6 +24,7 @@ struct options
     uint8_t freeDataSpace;
     uint8_t iosActive;
     uint8_t nopSpace;
+    uint8_t totalNopSpace;
 };
 
 typedef struct options options_t;

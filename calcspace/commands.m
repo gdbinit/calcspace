@@ -67,7 +67,7 @@ process_target(const uint8_t *buf, options_t options)
                     process_injectionspace(address, options);
                 if (options.freeDataSpace)
                     process_textspace(address, options);
-                if (options.nopSpace)
+                if (options.nopSpace || options.totalNopSpace)
                     process_nopspace(address, options);
             }
             fatArch++;
@@ -80,7 +80,7 @@ process_target(const uint8_t *buf, options_t options)
             process_injectionspace(buf, options);
         if (options.freeDataSpace)
             process_textspace(buf, options);
-        if (options.nopSpace)
+        if (options.nopSpace || options.totalNopSpace)
             process_nopspace(buf, options);
     }    
 }
@@ -455,23 +455,29 @@ process_nopspace(const uint8_t *buf, options_t options)
     int totalbytes = 0;
     // iterate to dump the contents
     char *cpu = get_cpu(header.cputype, header.cpusubtype);
+    // FIXME: it's starting to get a mess here :-)
     if (options.excelActive)
     {
-        printf("NOP Size, Count, Total available bytes, CPU\n");
+        if (!options.totalNopSpace) printf("NOP Size, Count, Total available bytes, CPU\n");
         for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
         {
-            printf("%d,%d,%d,%s\n", s->key, s->count, s->key * s->count, cpu);
+            if (!options.totalNopSpace)
+                printf("%d,%d,%d,%s\n", s->key, s->count, s->key * s->count, cpu);
             totalbytes += s->key * s->count;
         }
 //        printf("Total NOP count: %d\n", count);
-        printf("Total NOP bytes: %d\n", totalbytes);
+        if (options.totalNopSpace)
+            printf("%d,%s\n",totalbytes, cpu);
+        else
+            printf("Total NOP bytes: %d\n", totalbytes);
     }
     else
     {
         printf("Processing %s target...\n", cpu);
         for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
         {
-            printf("NOP size %d: Count: %d Total available bytes: %d\n", s->key, s->count, s->key * s->count);
+            if (!options.totalNopSpace)
+                printf("NOP size %d: Count: %d Total available bytes: %d\n", s->key, s->count, s->key * s->count);
             totalbytes += s->key * s->count;
         }
 //        printf("Total NOP count: %d\n", count);

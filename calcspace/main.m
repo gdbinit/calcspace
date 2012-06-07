@@ -78,7 +78,8 @@ help(const char *exe)
     printf("-i : target is an iOS application\n");
     printf("-e : format output to be imported into Excel\n");
     printf("-n : calculate free space to inject new commands\n");
-    printf("-s : calculate total NOP space in __TEXT segment\n");
+    printf("-s : calculate available NOP space in __text section\n");
+    printf("-t : calculate only total available NOP space in __text section\n");
     printf("-h : display this help text\n\n");
     printf("Note: Interactive mode will be used if no commands or no path is configured\n");
 }
@@ -94,6 +95,7 @@ int main (int argc, char * argv[])
         { "free",    no_argument, NULL, 'f' },
         { "help",    no_argument, NULL, 'h' },
         { "slack",   no_argument, NULL, 's' },
+        { "totalslack", no_argument, NULL, 't' },
 		{ NULL, 0, NULL, 0 }
 	};
 	int option_index = 0;
@@ -105,7 +107,7 @@ int main (int argc, char * argv[])
     init_options(&options);
 
     // process command line options
-	while ((c = getopt_long(argc, argv, "aienfhs", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "aienfhst", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -132,6 +134,9 @@ int main (int argc, char * argv[])
                 break;
             case 's':
                 options.nopSpace = 1;
+                break;
+            case 't':
+                options.totalNopSpace = 1;
                 break;
 			default:
 				help(myProgramName);
@@ -203,6 +208,7 @@ init_options(options_t *options)
     options->iosActive     = 0;
     options->isFat         = 0;
     options->nopSpace      = 0;
+    options->totalNopSpace = 0;
 }
 
 /*
