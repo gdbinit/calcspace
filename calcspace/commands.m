@@ -323,8 +323,6 @@ process_nopspace(const uint8_t *buf, options_t options)
     int count = 0;
     
     headerSize = get_header(buf, &header);
-    char *cpu = get_cpu(header.cputype, header.cpusubtype);
-    printf("Process %s target...\n", cpu);
     
     address = (uint8_t*)buf + headerSize;
     struct load_command *loadCmd;
@@ -456,12 +454,13 @@ process_nopspace(const uint8_t *buf, options_t options)
     struct nopstats *s;
     int totalbytes = 0;
     // iterate to dump the contents
+    char *cpu = get_cpu(header.cputype, header.cpusubtype);
     if (options.excelActive)
     {
-        printf("NOP Size, Count, Total available bytes\n");
+        printf("NOP Size, Count, Total available bytes, CPU\n");
         for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
         {
-            printf("%d,%d,%d\n", s->key, s->count, s->key * s->count);
+            printf("%d,%d,%d,%s\n", s->key, s->count, s->key * s->count, cpu);
             totalbytes += s->key * s->count;
         }
 //        printf("Total NOP count: %d\n", count);
@@ -469,6 +468,7 @@ process_nopspace(const uint8_t *buf, options_t options)
     }
     else
     {
+        printf("Processing %s target...\n", cpu);
         for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
         {
             printf("NOP size %d: Count: %d Total available bytes: %d\n", s->key, s->count, s->key * s->count);
@@ -499,9 +499,9 @@ get_cpu(cpu_type_t cputype, cpu_subtype_t cpusubtype)
     switch (cputype) 
     {
         case CPU_TYPE_I386:
-            return "32bits";
+            return "x86";
         case CPU_TYPE_X86_64:
-            return "64bits";
+            return "x86_64";
         case CPU_TYPE_ARM:
         {
             if (cpusubtype == CPU_SUBTYPE_ARM_V6)
