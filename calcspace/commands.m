@@ -323,10 +323,12 @@ process_nopspace(const uint8_t *buf, options_t options)
     int count = 0;
     
     headerSize = get_header(buf, &header);
+    char *cpu = get_cpu(header.cputype, header.cpusubtype);
+    printf("Process %s target...\n", cpu);
     
     address = (uint8_t*)buf + headerSize;
     struct load_command *loadCmd;
-    uint64_t textFirstSectionAddress = 0;
+    uint64_t textOffset = 0;
     uint64_t textVirtualAddress = 0;
     uint64_t textSize = 0;
     
@@ -347,12 +349,11 @@ process_nopspace(const uint8_t *buf, options_t options)
                     struct section *currentSectionCmd = (struct section*)sectionAddress;
                     if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
                     {
-                        textFirstSectionAddress = currentSectionCmd->offset;
+                        textOffset = currentSectionCmd->offset;
                         textVirtualAddress = currentSectionCmd->addr;
                         textSize = currentSectionCmd->size;
-                        
 #if DEBUG
-                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+                        printf("[DEBUG] first section offset %x\n", textOffset);
 #endif
                         break;
                     }
@@ -372,11 +373,11 @@ process_nopspace(const uint8_t *buf, options_t options)
                     if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
                     {
                         arch = 1;
-                        textFirstSectionAddress = currentSectionCmd->offset;
+                        textOffset = currentSectionCmd->offset;
                         textVirtualAddress = currentSectionCmd->addr;
                         textSize = currentSectionCmd->size;
 #if DEBUG
-                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+                        printf("[DEBUG] first section offset %x\n", textOffset);
 #endif
                         break;
                     }
@@ -406,7 +407,7 @@ process_nopspace(const uint8_t *buf, options_t options)
     _OffsetType offset = textVirtualAddress;
     
     uint8_t *textSectionBuffer;
-    textSectionBuffer = (uint8_t*)buf + textFirstSectionAddress;
+    textSectionBuffer = (uint8_t*)buf + textOffset;
     // XXX: hum.. distorm size is a INT
     unsigned long filesize = (unsigned long)textSize;
     while (1)
@@ -455,13 +456,27 @@ process_nopspace(const uint8_t *buf, options_t options)
     struct nopstats *s;
     int totalbytes = 0;
     // iterate to dump the contents
-    for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
+    if (options.excelActive)
     {
-        printf("NOP Size %d: quantity: %d total available bytes: %d\n", s->key, s->count, s->key * s->count);
-        totalbytes += s->key * s->count;
+        printf("NOP Size, Count, Total available bytes\n");
+        for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
+        {
+            printf("%d,%d,%d\n", s->key, s->count, s->key * s->count);
+            totalbytes += s->key * s->count;
+        }
+//        printf("Total NOP count: %d\n", count);
+        printf("Total NOP bytes: %d\n", totalbytes);
     }
-    printf("Total NOP count: %d\n", count);
-    printf("Total NOP bytes: %d\n", totalbytes);
+    else
+    {
+        for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
+        {
+            printf("NOP size %d: Count: %d Total available bytes: %d\n", s->key, s->count, s->key * s->count);
+            totalbytes += s->key * s->count;
+        }
+//        printf("Total NOP count: %d\n", count);
+        printf("Total NOP bytes: %d\n", totalbytes);
+    }
     totalbytes = 0;
     count = 0;
     HASH_CLEAR(hh,nopStatsTable);
