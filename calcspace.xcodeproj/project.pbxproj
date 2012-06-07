@@ -15,6 +15,7 @@
 		DEC7A5381573C32D0016105B /* commands.m in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A5371573C32D0016105B /* commands.m */; };
 		DEC7A53F1573C5E90016105B /* macho.c in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A53D1573C5E90016105B /* macho.c */; };
 		DEC7A5421573C7250016105B /* interactive.c in Sources */ = {isa = PBXBuildFile; fileRef = DEC7A5401573C7250016105B /* interactive.c */; };
+		DEC9182C158003C900FADB29 /* libdistorm3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DEC9182B158003C900FADB29 /* libdistorm3.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -44,6 +45,8 @@
 		DEC7A53E1573C5E90016105B /* macho.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = macho.h; sourceTree = "<group>"; };
 		DEC7A5401573C7250016105B /* interactive.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = interactive.c; sourceTree = "<group>"; };
 		DEC7A5411573C7250016105B /* interactive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = interactive.h; sourceTree = "<group>"; };
+		DEC9182B158003C900FADB29 /* libdistorm3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libdistorm3.dylib; path = usr/local/lib/libdistorm3.dylib; sourceTree = SDKROOT; };
+		DEC9182D15801CE800FADB29 /* uthash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uthash.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +54,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DEC9182C158003C900FADB29 /* libdistorm3.dylib in Frameworks */,
 				DE6429C81571A92B00F409E4 /* libcurses.dylib in Frameworks */,
 				DE6429C61571A92200F409E4 /* libedit.dylib in Frameworks */,
 				DEA78507156BEDAC0052657D /* Foundation.framework in Frameworks */,
@@ -63,6 +67,7 @@
 		DEA784D1156B28EA0052657D = {
 			isa = PBXGroup;
 			children = (
+				DEC9182B158003C900FADB29 /* libdistorm3.dylib */,
 				DEC7A5351573BEB00016105B /* Libraries */,
 				DEA784DF156B28EA0052657D /* calcspace */,
 				DEA784DD156B28EA0052657D /* Products */,
@@ -82,6 +87,7 @@
 			children = (
 				DEC7A5371573C32D0016105B /* commands.m */,
 				DEC7A5361573C32D0016105B /* commands.h */,
+				DEC9182D15801CE800FADB29 /* uthash.h */,
 				DEC7A53C1573C5250016105B /* structures.h */,
 				DEA784E0156B28EA0052657D /* main.m */,
 				DEA784E2156B28EA0052657D /* calcspace.1 */,

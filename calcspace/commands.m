@@ -18,11 +18,20 @@
 #include <strings.h>
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
+#include <distorm.h>
+#include "uthash.h"
 #include "structures.h"
 #include "macho.h"
 #include "commands.h"
 
+struct nopstats {
+    int key;
+    uint32_t count;
+    UT_hash_handle hh;
+};
+
 static char * get_cpu(cpu_type_t cputype, cpu_subtype_t cpusubtype);
+static int key_sort(struct nopstats *a, struct nopstats *b);
 
 /*
  * function that will process the target and act according user options
@@ -58,6 +67,8 @@ process_target(const uint8_t *buf, options_t options)
                     process_injectionspace(address, options);
                 if (options.freeDataSpace)
                     process_textspace(address, options);
+                if (options.nopSpace)
+                    process_nopspace(address, options);
             }
             fatArch++;
         }
@@ -69,6 +80,8 @@ process_target(const uint8_t *buf, options_t options)
             process_injectionspace(buf, options);
         if (options.freeDataSpace)
             process_textspace(buf, options);
+        if (options.nopSpace)
+            process_nopspace(buf, options);
     }    
 }
 
@@ -289,6 +302,177 @@ process_injectionspace(const uint8_t *buf, options_t options)
         printf("%lld,%s\n", firstSectionAddress-headerEndAddress, cpu);
     else
         printf("Free injection space: %lld bytes (%s)\n", firstSectionAddress-headerEndAddress, cpu);
+}
+
+/*
+ * function to process nop space
+ *
+ * we want to read the __TEXT/__text section and find the total NOP space
+ * and also gather some statistics about the different space sizes
+ */
+void 
+process_nopspace(const uint8_t *buf, options_t options)
+{
+    // the hash table
+    struct nopstats *nopStatsTable = NULL;
+
+    struct mach_header_64 header;
+    uint32_t headerSize = 0;
+    uint8_t *address = NULL;
+    uint8_t arch = 0;
+    int count = 0;
+    
+    headerSize = get_header(buf, &header);
+    
+    address = (uint8_t*)buf + headerSize;
+    struct load_command *loadCmd;
+    uint64_t textFirstSectionAddress = 0;
+    uint64_t textVirtualAddress = 0;
+    uint64_t textSize = 0;
+    
+    for (uint32_t i = 0; i < header.ncmds ; i++)
+    {
+        loadCmd = (struct load_command*)address;
+#if DEBUG
+        printf("[DEBUG] Current load cmd %x\n", loadCmd->cmd);
+#endif
+        if (loadCmd->cmd == LC_SEGMENT)
+        {
+            struct segment_command *segCmd = (struct segment_command*)address;
+            if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
+            {
+                uint8_t *sectionAddress = address + sizeof(struct segment_command);
+                for (uint32_t x = 0; x < segCmd->nsects; x++)
+                {
+                    struct section *currentSectionCmd = (struct section*)sectionAddress;
+                    if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
+                    {
+                        textFirstSectionAddress = currentSectionCmd->offset;
+                        textVirtualAddress = currentSectionCmd->addr;
+                        textSize = currentSectionCmd->size;
+                        
+#if DEBUG
+                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+#endif
+                        break;
+                    }
+                    sectionAddress += sizeof(struct section);
+                }
+            }
+        }
+        else if (loadCmd->cmd == LC_SEGMENT_64)
+        {
+            struct segment_command_64 *segCmd = (struct segment_command_64*)address;
+            if (strncmp(segCmd->segname, "__TEXT", 16) == 0)
+            {
+                uint8_t *sectionAddress = address + sizeof(struct segment_command_64);
+                for (uint32_t x = 0; x < segCmd->nsects; x++)
+                {
+                    struct section_64 *currentSectionCmd = (struct section_64*)sectionAddress;
+                    if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
+                    {
+                        arch = 1;
+                        textFirstSectionAddress = currentSectionCmd->offset;
+                        textVirtualAddress = currentSectionCmd->addr;
+                        textSize = currentSectionCmd->size;
+#if DEBUG
+                        printf("[DEBUG] first section address %x\n", textFirstSectionAddress);
+#endif
+                        break;
+                    }
+                    sectionAddress += sizeof(struct section_64);
+                }
+            }
+        }
+        // move to next command
+        address += loadCmd->cmdsize;
+    }
+    
+    // start disassembling the __text section, looking for NOPs
+#define MAX_INSTRUCTIONS (1000)
+    // Holds the result of the decoding.
+    _DecodeResult res;
+    // Decoded instruction information.
+    _DecodedInst decodedInstructions[MAX_INSTRUCTIONS];
+    // next is used for instruction's offset synchronization.
+    // decodedInstructionsCount holds the count of filled instructions' array by the decoder.
+    uint32_t decodedInstructionsCount = 0;
+    uint32_t i;
+    uint32_t next = 0;
+    // Default decoding mode is 32 bits, could be set by command line.
+    _DecodeType dt = Decode32Bits;
+    if (arch) dt = Decode64Bits;
+    // Default offset for buffer is 0, could be set in command line.
+    _OffsetType offset = textVirtualAddress;
+    
+    uint8_t *textSectionBuffer;
+    textSectionBuffer = (uint8_t*)buf + textFirstSectionAddress;
+    // XXX: hum.. distorm size is a INT
+    unsigned long filesize = (unsigned long)textSize;
+    while (1)
+    {
+        res = distorm_decode(offset, (const unsigned char*)textSectionBuffer, filesize, dt, decodedInstructions, MAX_INSTRUCTIONS, &decodedInstructionsCount);
+        if (res == DECRES_INPUTERR)
+        {
+            // Null buffer? Decode type not 16/32/64?
+            fputs("Input error, halting!\n", stderr);
+        }
+        for (i = 0; i < decodedInstructionsCount; i++)
+        {
+            // we want to find if it's a NOP
+            if (strncmp((char*)decodedInstructions[i].mnemonic.p, "NOP", 4) == 0)
+            {
+                count++;
+                struct nopstats *newEntry = malloc(sizeof(struct nopstats));
+                struct nopstats *existingEntry;
+                newEntry->key = decodedInstructions[i].size;
+                newEntry->count = 1;
+                int size = decodedInstructions[i].size;
+                // verify if this key already exists
+                HASH_FIND_INT(nopStatsTable, &size, existingEntry);
+                // if key doesn't exist, add it
+                if (existingEntry == NULL)
+                    HASH_ADD_INT(nopStatsTable, key, newEntry);
+                // else just increase the count of that key
+                else
+                    existingEntry->count += 1;
+            }
+        }
+        if (res == DECRES_SUCCESS) break; // All instructions were decoded.
+        else if (decodedInstructionsCount == 0) break;
+        
+        // Synchronize:
+        next = (uint32_t)(decodedInstructions[decodedInstructionsCount-1].offset - offset);
+        next += decodedInstructions[decodedInstructionsCount-1].size;
+        // Advance ptr and recalc offset.
+        textSectionBuffer += next;
+        filesize -= next;
+        offset += next;
+    }
+    // let's sort the hash table
+    HASH_SORT(nopStatsTable, key_sort);
+    // generate some stats
+    struct nopstats *s;
+    int totalbytes = 0;
+    // iterate to dump the contents
+    for(s = nopStatsTable; s != NULL; s = (struct nopstats*)(s->hh.next))
+    {
+        printf("NOP Size %d: quantity: %d total available bytes: %d\n", s->key, s->count, s->key * s->count);
+        totalbytes += s->key * s->count;
+    }
+    printf("Total NOP count: %d\n", count);
+    printf("Total NOP bytes: %d\n", totalbytes);
+    totalbytes = 0;
+    count = 0;
+    HASH_CLEAR(hh,nopStatsTable);
+}
+
+/*
+ * aux sort function to sort the nop stats hash stable
+ */
+static int key_sort(struct nopstats *a, struct nopstats *b)
+{
+    return (a->key - b->key);
 }
 
 /*

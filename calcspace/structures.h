@@ -23,6 +23,7 @@ struct options
     uint8_t newCmdsActive;
     uint8_t freeDataSpace;
     uint8_t iosActive;
+    uint8_t nopSpace;
 };
 
 typedef struct options options_t;

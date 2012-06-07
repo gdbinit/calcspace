@@ -18,5 +18,6 @@
 void process_target(const uint8_t *buf, options_t options);
 void process_injectionspace(const uint8_t *buf, options_t options);
 void process_textspace(const uint8_t *buf, options_t options);
+void process_nopspace(const uint8_t *buf, options_t options);
 
 #endif

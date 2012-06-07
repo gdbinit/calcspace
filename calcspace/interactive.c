@@ -39,6 +39,7 @@ typedef struct {
 static int cmd_quit(char *arg);
 static int cmd_new(char *arg);
 static int cmd_free(char *arg);
+static int cmd_nopspace(char *arg);
 static int cmd_excel(char *arg);
 static int cmd_all(char *arg);
 static int cmd_ios(char *arg);
@@ -49,6 +50,7 @@ static int cmd_options(char *arg);
 COMMAND commands[] = {
     { "new",   cmd_new,   "Calculate free space for new commands.", CMD },
     { "free",  cmd_free,  "Calculate free __TEXT space.",CMD },
+    { "nop",   cmd_nopspace, "Calculate alignment/slack NOP space.", CMD },
     { "excel", cmd_excel, "Set output to excel mode.", CONFIG },
     { "all",   cmd_all,   "Set free command to calculate space for all sections.", CONFIG },
     { "ios",   cmd_ios,   "Set target as an iOS application.", CONFIG },
@@ -423,6 +425,21 @@ cmd_free (char *arg)
     process_target(iTargetBuffer, iOptions);
     // reset the structure for the commands values
     // else it would display both commands
+    reset_options(&iOptions);
+    return 0;
+}
+
+static int
+cmd_nopspace(char *arg)
+{
+    // verify if we have any target loaded else it return error
+    if (iTargetBuffer == NULL)
+    {
+        printf("[ERROR] target not configured!\n");
+        return 0;
+    }
+    iOptions.nopSpace = 1;
+    process_target(iTargetBuffer, iOptions);
     reset_options(&iOptions);
     return 0;
 }
