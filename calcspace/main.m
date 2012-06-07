@@ -221,6 +221,7 @@ reset_options(options_t *options)
     options->freeDataSpace = 0;
     options->newCmdsActive = 0;
     options->nopSpace      = 0;
+    options->totalNopSpace = 0;
 }
 
 /*

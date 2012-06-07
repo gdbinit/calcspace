@@ -10,6 +10,9 @@
  *  
  *  The commands to process the headers
  *  
+ *  TODO:
+ *  - the excel output first column should be what the data refers to since
+ *    we can combine the different options and then we don't know what is what
  */
 
 #include <stdio.h>
