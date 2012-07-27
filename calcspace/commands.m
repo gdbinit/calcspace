@@ -350,6 +350,7 @@ process_nopspace(const uint8_t *buf, options_t options)
                     struct section *currentSectionCmd = (struct section*)sectionAddress;
                     if (strncmp(currentSectionCmd->sectname, "__text", 16) == 0)
                     {
+                        // FIXME: we will fail here if binary has section info erased
                         textOffset = currentSectionCmd->offset;
                         textVirtualAddress = currentSectionCmd->addr;
                         textSize = currentSectionCmd->size;
@@ -417,7 +418,7 @@ process_nopspace(const uint8_t *buf, options_t options)
         if (res == DECRES_INPUTERR)
         {
             // Null buffer? Decode type not 16/32/64?
-            fputs("Input error, halting!\n", stderr);
+            fputs("[ERROR] Input error, halting!\n", stderr);
         }
         for (i = 0; i < decodedInstructionsCount; i++)
         {
