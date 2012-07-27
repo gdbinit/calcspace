@@ -1,0 +1,25 @@
+ _____     _     _____                 
+|     |___| |___|   __|___ ___ ___ ___ 
+|   --| .'| |  _|__   | . | .'|  _| -_|
+|_____|__,|_|___|_____|  _|__,|___|___|
+                      |_|              
+(c) fG!, 2012 - reverser@put.as
+
+This is a small utility that I used to calculate available free space in mach-o binaries
+to be used for code injection.
+
+It features an interactive mode or command line options. Run without options to enter the interactive mode.
+
+This version only supports targets that use the normal application bundle structure.
+Isolated binaries are not supported for now.
+
+PowerPC binaries are not analyzed, only Intel 32/64bits and iOS.
+
+Distorm3 dynamic library is required for the NOP space analysis (http://code.google.com/p/distorm/).
+
+UThash is also used but the necessary files are already included (http://uthash.sourceforge.net).
+
+The excel options will output information in a easy to import Excel format so you can do some graphs.
+
+Enjoy it,
+fG!
